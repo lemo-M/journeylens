@@ -7,6 +7,7 @@ import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.core.repository.MemoryRepositoryImpl
 import com.lm.journeylens.feature.memory.AddMemoryScreenModel
 import com.lm.journeylens.feature.memory.service.ExifParser
+import com.lm.journeylens.feature.map.MapScreenModel
 import com.lm.journeylens.feature.timeline.TimelineScreenModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -37,6 +38,9 @@ val coreModule = module {
 val featureModule = module {
     // EXIF 解析器
     factory { ExifParser() }
+    
+    // Map ScreenModel
+    factory { MapScreenModel(get()) }
     
     // AddMemory ScreenModel
     factory { AddMemoryScreenModel(get(), get()) }

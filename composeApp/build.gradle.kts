@@ -33,6 +33,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.android)
             implementation(libs.androidx.exifinterface)
+            implementation(libs.maplibre.android)
         }
         commonMain.dependencies {
             // --- Room 依赖 ---
