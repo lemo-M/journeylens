@@ -17,16 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.koin.koinScreenModel
 import com.lm.journeylens.core.theme.JourneyLensColors
 import com.lm.journeylens.feature.memory.model.PendingImport
+import org.koin.compose.koinInject
 
 /**
  * 添加记忆页面
  */
 @Composable
 fun AddMemoryScreen() {
-    val screenModel = koinScreenModel<AddMemoryScreenModel>()
+    val screenModel: AddMemoryScreenModel = koinInject()
     val uiState by screenModel.uiState.collectAsState()
     
     Box(
