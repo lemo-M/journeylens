@@ -21,9 +21,10 @@ actual fun MapView(
 ) {
     val context = LocalContext.current
     
-    // 初始化 MapLibre
-    LaunchedEffect(Unit) {
+    // 同步初始化 MapLibre（在创建 MapView 之前）
+    remember {
         MapLibre.getInstance(context)
+        true
     }
     
     // 使用简约白色地图样式 (Stadia Maps Alidade Smooth - 免费)
