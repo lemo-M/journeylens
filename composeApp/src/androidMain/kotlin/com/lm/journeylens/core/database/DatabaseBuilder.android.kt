@@ -17,9 +17,11 @@ fun initDatabase(context: Context) {
  * Android 平台的数据库构建器
  */
 actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
-    return Room.databaseBuilder(
+    // 使用应用内部数据目录的完整路径
+    val dbFile = appContext.getDatabasePath("journeylens.db")
+    
+    return Room.databaseBuilder<AppDatabase>(
         context = appContext,
-        klass = AppDatabase::class.java,
-        name = "journeylens.db"
+        name = dbFile.absolutePath
     )
 }
