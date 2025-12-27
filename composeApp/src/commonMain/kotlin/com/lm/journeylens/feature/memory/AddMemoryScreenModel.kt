@@ -1,13 +1,14 @@
 package com.lm.journeylens.feature.memory
 
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
 import com.lm.journeylens.core.database.entity.Memory
 import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.feature.memory.model.ExifData
 import com.lm.journeylens.feature.memory.model.PendingImport
 import com.lm.journeylens.feature.memory.model.PhotoImportResult
 import com.lm.journeylens.feature.memory.service.ExifParser
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,11 +16,13 @@ import kotlinx.coroutines.launch
 
 /**
  * 添加记忆页面的 ViewModel
+ * 不再继承 Voyager ScreenModel，使用普通协程作用域
  */
 class AddMemoryScreenModel(
     private val memoryRepository: MemoryRepository,
     private val exifParser: ExifParser
-) : ScreenModel {
+) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     // UI 状态
     private val _uiState = MutableStateFlow(AddMemoryUiState())
@@ -29,7 +32,7 @@ class AddMemoryScreenModel(
      * 处理选中的照片
      */
     fun processSelectedPhotos(photoUris: List<String>) {
-        screenModelScope.launch {
+        scope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             val results = mutableListOf<PhotoImportResult>()
@@ -161,7 +164,7 @@ class AddMemoryScreenModel(
      * 确认导入所有照片
      */
     fun confirmImport() {
-        screenModelScope.launch {
+        scope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             val memories = _uiState.value.pendingImports
