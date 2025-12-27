@@ -7,6 +7,7 @@ import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.core.repository.MemoryRepositoryImpl
 import com.lm.journeylens.feature.memory.AddMemoryScreenModel
 import com.lm.journeylens.feature.memory.service.ExifParser
+import com.lm.journeylens.feature.timeline.TimelineScreenModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import org.koin.dsl.module
@@ -39,6 +40,9 @@ val featureModule = module {
     
     // AddMemory ScreenModel
     factory { AddMemoryScreenModel(get(), get()) }
+    
+    // Timeline ScreenModel
+    factory { TimelineScreenModel(get()) }
 }
 
 /**
