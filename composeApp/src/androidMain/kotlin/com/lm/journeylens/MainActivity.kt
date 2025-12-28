@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
         initDatabase(this)
 
         // 初始化 Koin（防止重复初始化）
-        if (org.koin.mp.KoinPlatform.getOrNull() == null) {
+        if (org.koin.core.context.GlobalContext.getKoinApplicationOrNull() == null) {
             startKoin {
                 androidContext(this@MainActivity)
                 modules(appModules)

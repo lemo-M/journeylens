@@ -25,10 +25,8 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
-        // 阿里云 Maven 镜像（包含高德 SDK）
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
-        // JitPack
-        maven { url = uri("https://jitpack.io") }
+        // 高德官方 Maven 仓库
+        maven { url = uri("https://ajpackages.aliyun.com/maven/repository/2185989-release-IhQJsz") }
     }
 }
 
