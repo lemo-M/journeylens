@@ -65,7 +65,7 @@ actual fun MapView(
                     val marker = aMap.addMarker(
                         MarkerOptions()
                             .position(position)
-                            .title("${memory.emoji} ${memory.title ?: ""}")
+                            .title("${memory.emoji} ${memory.locationName ?: ""}")
                             .snippet(memory.note ?: "")
                     )
                     marker?.`object` = memory
