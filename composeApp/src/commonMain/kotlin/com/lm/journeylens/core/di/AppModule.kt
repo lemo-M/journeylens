@@ -21,6 +21,7 @@ val coreModule = module {
         getDatabaseBuilder()
             .setDriver(BundledSQLiteDriver())
             .setQueryCoroutineContext(Dispatchers.IO)
+            .fallbackToDestructiveMigration(dropAllTables = true)  // 开发阶段使用破坏性迁移
             .build()
     }
     

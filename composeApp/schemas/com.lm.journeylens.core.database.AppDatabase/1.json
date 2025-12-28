@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "c56bac167127aa125e79aaaf0c1e00ed",
+    "identityHash": "b9e4405b69f5258c443acdfaa57058a3",
     "entities": [
       {
         "tableName": "memories",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `locationName` TEXT, `timestamp` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `photoUri` TEXT NOT NULL, `title` TEXT, `note` TEXT, `mood` TEXT, `isAutoLocated` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `locationName` TEXT, `timestamp` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `photoUri` TEXT NOT NULL, `videoUri` TEXT, `title` TEXT, `note` TEXT, `mood` TEXT, `isAutoLocated` INTEGER NOT NULL, `isLivePhoto` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -50,6 +50,11 @@
             "notNull": true
           },
           {
+            "fieldPath": "videoUri",
+            "columnName": "videoUri",
+            "affinity": "TEXT"
+          },
+          {
             "fieldPath": "title",
             "columnName": "title",
             "affinity": "TEXT"
@@ -69,6 +74,12 @@
             "columnName": "isAutoLocated",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "isLivePhoto",
+            "columnName": "isLivePhoto",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -81,7 +92,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c56bac167127aa125e79aaaf0c1e00ed')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b9e4405b69f5258c443acdfaa57058a3')"
     ]
   }
 }
