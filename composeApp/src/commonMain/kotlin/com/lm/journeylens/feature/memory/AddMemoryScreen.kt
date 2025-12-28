@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lm.journeylens.core.theme.JourneyLensColors
 import com.lm.journeylens.feature.memory.model.PendingImport
+import com.lm.journeylens.feature.memory.service.rememberPhotoPicker
 import org.koin.compose.koinInject
 
 /**
@@ -73,8 +74,9 @@ fun AddMemoryScreen() {
 private fun SelectPhotosContent(
     onPhotosSelected: (List<String>) -> Unit
 ) {
-    // TODO: 集成 Android Photo Picker
-    // 目前显示占位 UI
+    // 使用 Photo Picker
+    val launchPicker = rememberPhotoPicker(onPhotosSelected)
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -109,10 +111,7 @@ private fun SelectPhotosContent(
         Spacer(modifier = Modifier.height(32.dp))
         
         Button(
-            onClick = {
-                // TODO: 启动 Photo Picker
-                // 临时用于测试的假数据
-            },
+            onClick = { launchPicker() },
             colors = ButtonDefaults.buttonColors(
                 containerColor = JourneyLensColors.AppleBlue
             ),
