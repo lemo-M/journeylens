@@ -3,6 +3,7 @@ package com.lm.journeylens.feature.map
 import cafe.adriel.voyager.core.model.ScreenModel
 import com.lm.journeylens.core.database.entity.Memory
 import com.lm.journeylens.core.repository.MemoryRepository
+import com.lm.journeylens.feature.memory.service.LocationService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,8 +31,9 @@ data class MapCameraPosition(
 
 
 class MapScreenModel(
-    private val memoryRepository: MemoryRepository
-) : ScreenModel { // 确保实现了 Voyager 的 ScreenModel
+    private val memoryRepository: MemoryRepository,
+    private val locationService: LocationService
+) : ScreenModel {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     private val _uiState = MutableStateFlow(MapUiState())
@@ -39,6 +41,24 @@ class MapScreenModel(
     
     init {
         loadMemories()
+        initLocation()
+    }
+    
+    private fun initLocation() {
+        scope.launch {
+            // 如果还没有保存的相机位置，尝试获取当前位置
+            if (_uiState.value.cameraPosition == null) {
+                locationService.getLastLocation()?.let { location ->
+                    _uiState.value = _uiState.value.copy(
+                        cameraPosition = MapCameraPosition(
+                            latitude = location.latitude,
+                            longitude = location.longitude,
+                            zoom = 15f
+                        )
+                    )
+                }
+            }
+        }
     }
     
     private fun loadMemories() {

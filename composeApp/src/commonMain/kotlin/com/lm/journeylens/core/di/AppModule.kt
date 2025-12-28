@@ -37,7 +37,7 @@ val coreModule = module {
  */
 val featureModule = module {
     // Map ScreenModel
-    factory { MapScreenModel(get()) }
+    factory { MapScreenModel(get(), get()) }
     
     // AddMemory ScreenModel (Repository + DraftService)
     factory { AddMemoryScreenModel(get(), get()) }

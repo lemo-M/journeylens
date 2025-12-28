@@ -218,6 +218,7 @@ data class AddMemoryUiState(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val locationName: String? = null,
+    val address: String? = null,
     val isAutoLocated: Boolean = false,
     
     // 照片

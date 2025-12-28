@@ -46,12 +46,14 @@ import com.lm.journeylens.feature.memory.ImportStep
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import com.lm.journeylens.navigation.AddTab
 
+import cafe.adriel.voyager.koin.getScreenModel
+
 /**
  * 地图页面 - 战争迷雾探索地图
  */
 @Composable
 fun MapScreen() {
-    val screenModel: MapScreenModel = koinInject()
+    val screenModel: MapScreenModel = getScreenModel()
     val repository: MemoryRepository = koinInject()
     val draftService: DraftService = koinInject()
     val uiState by screenModel.uiState.collectAsState()
@@ -252,7 +254,7 @@ fun MapScreen() {
                                             latitude = m.latitude,
                                             longitude = m.longitude,
                                             locationName = m.locationName,
-                                            // address = m.address // AddMemoryUiState 目前没有 address 字段，先注释掉
+                                            // address = m.address // Memory 实体没有 address 字段，忽略
                                         )
                                         scope.launch {
                                             draftService.saveDraft(draft)
@@ -319,19 +321,19 @@ private fun AddMemoryCard(
      Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .heightIn(min = 320.dp, max = 400.dp),
+            .padding(16.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = JourneyLensColors.SurfaceLight.copy(alpha = 0.98f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(24.dp)
+                    // 与 MapMemoryDetailCard 保持一致的高度逻辑
+                    .heightIn(min = 320.dp, max = 400.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
