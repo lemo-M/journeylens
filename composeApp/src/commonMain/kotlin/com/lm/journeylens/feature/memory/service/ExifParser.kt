@@ -4,8 +4,10 @@ import com.lm.journeylens.feature.memory.model.ExifData
 
 /**
  * EXIF 解析器接口 - expect/actual 实现
+ * Android: 接收 Context 参数
+ * iOS: 无参数
  */
-expect class ExifParser() {
+expect class ExifParser {
     /**
      * 从照片 URI 解析 EXIF 数据
      */

@@ -7,24 +7,18 @@ import com.lm.journeylens.feature.memory.model.ExifData
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-private lateinit var appContext: Context
-
-/**
- * 初始化 EXIF 解析器上下文
- */
-fun initExifParser(context: Context) {
-    appContext = context.applicationContext
-}
-
 /**
  * Android 平台 EXIF 解析器实现
+ * 通过 Koin 注入 Context
  */
-actual class ExifParser {
+actual class ExifParser(
+    private val context: Context
+) {
     
     actual suspend fun parseExif(photoUri: String): ExifData {
         return try {
             val uri = Uri.parse(photoUri)
-            val inputStream = appContext.contentResolver.openInputStream(uri)
+            val inputStream = context.contentResolver.openInputStream(uri)
                 ?: return ExifData(null, null, null)
             
             val exif = ExifInterface(inputStream)
@@ -44,6 +38,7 @@ actual class ExifParser {
                 timestamp = timestamp
             )
         } catch (e: Exception) {
+            e.printStackTrace()
             ExifData(null, null, null)
         }
     }
