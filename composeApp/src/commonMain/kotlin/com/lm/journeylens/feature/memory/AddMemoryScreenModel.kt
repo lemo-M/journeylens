@@ -6,6 +6,7 @@ import com.lm.journeylens.feature.memory.model.ExifData
 import com.lm.journeylens.feature.memory.model.PendingImport
 import com.lm.journeylens.feature.memory.model.PhotoImportResult
 import com.lm.journeylens.feature.memory.service.ExifParser
+import com.lm.journeylens.feature.memory.service.LivePhotoService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,11 +17,12 @@ import kotlinx.coroutines.launch
 
 /**
  * 添加记忆页面的 ViewModel
- * 不再继承 Voyager ScreenModel，使用普通协程作用域
+ * 支持普通照片和实况照片导入
  */
 class AddMemoryScreenModel(
     private val memoryRepository: MemoryRepository,
-    private val exifParser: ExifParser
+    private val exifParser: ExifParser,
+    private val livePhotoService: LivePhotoService
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
@@ -35,17 +37,21 @@ class AddMemoryScreenModel(
         scope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
-            val results = mutableListOf<PhotoImportResult>()
             val pendingImports = mutableListOf<PendingImport>()
             
-            // 解析每张照片的 EXIF
-            for (uri in photoUris) {
-                val exifData = exifParser.parseExif(uri)
-                val result = processExifData(uri, exifData)
-                results.add(result)
+            // 检测实况照片并解析 EXIF
+            val livePhotoResults = livePhotoService.detectLivePhotos(photoUris)
+            
+            for (result in livePhotoResults) {
+                val photoUri = result.livePhotoData.photoUri
+                val videoUri = result.livePhotoData.videoUri
+                
+                // 解析 EXIF
+                val exifData = exifParser.parseExif(photoUri)
+                val importResult = processExifData(photoUri, exifData, videoUri)
                 
                 // 转换为待审核项
-                pendingImports.add(resultToPendingImport(result))
+                pendingImports.add(resultToPendingImport(importResult))
             }
             
             // 智能位置匹配：为无GPS的照片推测位置
@@ -62,24 +68,33 @@ class AddMemoryScreenModel(
     /**
      * 处理 EXIF 数据，返回导入结果
      */
-    private fun processExifData(uri: String, exifData: ExifData): PhotoImportResult {
+    private fun processExifData(
+        uri: String, 
+        exifData: ExifData, 
+        videoUri: String?
+    ): PhotoImportResult {
         return when {
             exifData.hasLocation && exifData.timestamp != null -> {
                 PhotoImportResult.AutoLocated(
                     photoUri = uri,
                     latitude = exifData.latitude!!,
                     longitude = exifData.longitude!!,
-                    timestamp = exifData.timestamp
+                    timestamp = exifData.timestamp,
+                    videoUri = videoUri
                 )
             }
             exifData.timestamp != null -> {
                 PhotoImportResult.NeedsManualLocation(
                     photoUri = uri,
-                    timestamp = exifData.timestamp
+                    timestamp = exifData.timestamp,
+                    videoUri = videoUri
                 )
             }
             else -> {
-                PhotoImportResult.NoMetadata(photoUri = uri)
+                PhotoImportResult.NoMetadata(
+                    photoUri = uri,
+                    videoUri = videoUri
+                )
             }
         }
     }
@@ -91,6 +106,7 @@ class AddMemoryScreenModel(
         return when (result) {
             is PhotoImportResult.AutoLocated -> PendingImport(
                 photoUri = result.photoUri,
+                videoUri = result.videoUri,
                 latitude = result.latitude,
                 longitude = result.longitude,
                 timestamp = result.timestamp,
@@ -98,6 +114,7 @@ class AddMemoryScreenModel(
             )
             is PhotoImportResult.NeedsManualLocation -> PendingImport(
                 photoUri = result.photoUri,
+                videoUri = result.videoUri,
                 latitude = result.suggestedLatitude,
                 longitude = result.suggestedLongitude,
                 timestamp = result.timestamp,
@@ -106,6 +123,7 @@ class AddMemoryScreenModel(
             )
             is PhotoImportResult.NoMetadata -> PendingImport(
                 photoUri = result.photoUri,
+                videoUri = result.videoUri,
                 latitude = null,
                 longitude = null,
                 timestamp = null,
@@ -175,7 +193,9 @@ class AddMemoryScreenModel(
                         longitude = pending.longitude!!,
                         timestamp = pending.timestamp ?: System.currentTimeMillis(),
                         photoUri = pending.photoUri,
-                        isAutoLocated = pending.isAutoLocated
+                        videoUri = pending.videoUri,
+                        isAutoLocated = pending.isAutoLocated,
+                        isLivePhoto = pending.isLivePhoto
                     )
                 }
             

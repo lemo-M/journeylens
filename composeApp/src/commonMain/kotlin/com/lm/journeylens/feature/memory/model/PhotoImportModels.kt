@@ -21,7 +21,8 @@ sealed class PhotoImportResult {
         val photoUri: String,
         val latitude: Double,
         val longitude: Double,
-        val timestamp: Long
+        val timestamp: Long,
+        val videoUri: String? = null  // 实况照片视频
     ) : PhotoImportResult()
     
     /**
@@ -31,14 +32,16 @@ sealed class PhotoImportResult {
         val photoUri: String,
         val timestamp: Long?,
         val suggestedLatitude: Double? = null,  // 根据时间推测的位置
-        val suggestedLongitude: Double? = null
+        val suggestedLongitude: Double? = null,
+        val videoUri: String? = null  // 实况照片视频
     ) : PhotoImportResult()
     
     /**
      * 完全无元数据
      */
     data class NoMetadata(
-        val photoUri: String
+        val photoUri: String,
+        val videoUri: String? = null  // 实况照片视频
     ) : PhotoImportResult()
 }
 
@@ -47,10 +50,12 @@ sealed class PhotoImportResult {
  */
 data class PendingImport(
     val photoUri: String,
+    val videoUri: String? = null,  // 实况照片视频 URI
     val latitude: Double?,
     val longitude: Double?,
     val timestamp: Long?,
     val isAutoLocated: Boolean,
     val isSuggested: Boolean = false,  // 是否是时间推测的位置
+    val isLivePhoto: Boolean = videoUri != null,  // 是否为实况照片
     var isConfirmed: Boolean = false
 )

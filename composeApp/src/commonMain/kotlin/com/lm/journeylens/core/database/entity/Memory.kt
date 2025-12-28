@@ -23,10 +23,12 @@ data class Memory(
     
     // 内容
     val photoUri: String,  // 照片本地路径
+    val videoUri: String? = null,  // 实况照片视频路径 (可选)
     val title: String? = null,  // 可选标题
     val note: String? = null,  // 可选备注
     
     // 元数据
     val mood: String? = null,  // 心情标签
     val isAutoLocated: Boolean = true,  // 是否自动定位（EXIF）
+    val isLivePhoto: Boolean = false,  // 是否为实况照片
 )

@@ -1,6 +1,7 @@
 package com.lm.journeylens.core.di
 
 import com.lm.journeylens.feature.memory.service.ExifParser
+import com.lm.journeylens.feature.memory.service.LivePhotoService
 import org.koin.dsl.module
 
 /**
@@ -9,4 +10,7 @@ import org.koin.dsl.module
 actual val platformModule = module {
     // EXIF 解析器 - iOS 实现
     factory { ExifParser() }
+    
+    // 实况照片服务 - iOS 实现
+    factory { LivePhotoService() }
 }
