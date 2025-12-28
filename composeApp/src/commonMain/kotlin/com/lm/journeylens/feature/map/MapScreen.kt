@@ -13,6 +13,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MyLocation
@@ -251,7 +252,7 @@ fun MapScreen() {
                                             latitude = m.latitude,
                                             longitude = m.longitude,
                                             locationName = m.locationName,
-                                            address = m.address
+                                            // address = m.address // AddMemoryUiState 目前没有 address 字段，先注释掉
                                         )
                                         scope.launch {
                                             draftService.saveDraft(draft)

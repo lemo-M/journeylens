@@ -12,7 +12,9 @@ import com.amap.api.maps.model.CameraPosition
 import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.model.MarkerOptions
 import com.amap.api.maps.model.MyLocationStyle
+import com.lm.journeylens.core.database.entity.Memory
 import com.lm.journeylens.feature.map.MapCameraPosition
+import kotlinx.coroutines.flow.collectLatest
 
 private const val TAG = "AMapView"
 
