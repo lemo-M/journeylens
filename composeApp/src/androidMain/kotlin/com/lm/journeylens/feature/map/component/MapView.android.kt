@@ -22,7 +22,7 @@ private const val TAG = "AMapView"
 @Composable
 actual fun MapView(
     memories: List<Memory>,
-    onMemoryClick: (Memory) -> Unit,
+    onMemoryClick: (List<Memory>) -> Unit,
     modifier: Modifier
 ) {
     val context = LocalContext.current
@@ -102,23 +102,20 @@ actual fun MapView(
                 aMap.setOnMarkerClickListener { marker ->
                     @Suppress("UNCHECKED_CAST")
                     val memoriesAtLocation = marker.`object` as? List<Memory>
-                    // 返回第一个记忆（UI 层可以处理显示列表）
-                    memoriesAtLocation?.firstOrNull()?.let { onMemoryClick(it) }
+                    // 返回所有记忆
+                    memoriesAtLocation?.let { onMemoryClick(it) }
                     true
                 }
                 
                 // 移动相机到第一个记忆点或默认位置
-                val targetPosition = memories.firstOrNull()?.let {
-                    LatLng(it.latitude, it.longitude)
-                } ?: LatLng(35.0, 105.0)  // 默认中国中心
-                
-                val zoom = if (memories.isNotEmpty()) 12f else 4f
-                
-                aMap.moveCamera(
-                    CameraUpdateFactory.newCameraPosition(
-                        CameraPosition(targetPosition, zoom, 0f, 0f)
+                if (memories.isNotEmpty()) {
+                    val targetPosition = LatLng(memories.first().latitude, memories.first().longitude)
+                     aMap.moveCamera(
+                        CameraUpdateFactory.newCameraPosition(
+                            CameraPosition(targetPosition, 12f, 0f, 0f)
+                        )
                     )
-                )
+                }
                 
                 Log.d(TAG, "Map updated with ${memories.size} memories in ${groupedMemories.size} locations")
             }

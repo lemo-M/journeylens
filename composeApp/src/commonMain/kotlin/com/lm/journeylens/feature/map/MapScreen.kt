@@ -7,18 +7,29 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil3.compose.AsyncImage
 import com.lm.journeylens.core.database.entity.Memory
+import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.core.theme.JourneyLensColors
 import com.lm.journeylens.feature.map.component.MapView
+import com.lm.journeylens.feature.memory.MemoryDetailScreen
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -30,7 +41,13 @@ import org.koin.compose.koinInject
 @Composable
 fun MapScreen() {
     val screenModel: MapScreenModel = koinInject()
+    val repository: MemoryRepository = koinInject()
     val uiState by screenModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    
+    // 控制详情编辑对话框
+    var showDetailDialog by remember { mutableStateOf(false) }
+    var editingMemory by remember { mutableStateOf<Memory?>(null) }
     
     Box(
         modifier = Modifier
@@ -51,7 +68,7 @@ fun MapScreen() {
                 // 地图
                 MapView(
                     memories = uiState.memories,
-                    onMemoryClick = { memory -> screenModel.selectMemory(memory) },
+                    onMemoryClick = { memories -> screenModel.selectMemories(memories) },
                     modifier = Modifier.fillMaxSize()
                 )
                 
@@ -117,19 +134,90 @@ fun MapScreen() {
             }
         }
         
-        // 选中记忆的详情卡片
+        // 选中记忆的详情卡片 (支持左右滑动)
         AnimatedVisibility(
-            visible = uiState.selectedMemory != null,
+            visible = uiState.selectedMemories.isNotEmpty(),
             enter = fadeIn() + slideInVertically { it },
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            uiState.selectedMemory?.let { memory ->
-                MapMemoryDetailCard(
-                    memory = memory,
-                    onDismiss = { screenModel.clearSelection() }
-                )
+            val selectedMemories = uiState.selectedMemories
+            if (selectedMemories.isNotEmpty()) {
+                val pagerState = rememberPagerState(pageCount = { selectedMemories.size })
+                
+                Column {
+                    // 页码指示器 (如果有多页)
+                    if (selectedMemories.size > 1) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            repeat(selectedMemories.size) { iteration ->
+                                val color = if (pagerState.currentPage == iteration) 
+                                    JourneyLensColors.AppleBlue else JourneyLensColors.TextTertiary.copy(alpha = 0.5f)
+                                Box(
+                                    modifier = Modifier
+                                        .padding(2.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                        .size(8.dp)
+                                )
+                            }
+                        }
+                    }
+                    
+                    HorizontalPager(
+                        state = pagerState,
+                        contentPadding = PaddingValues(horizontal = if (selectedMemories.size > 1) 16.dp else 0.dp),
+                        pageSpacing = 16.dp
+                    ) { page ->
+                        MapMemoryDetailCard(
+                            memory = selectedMemories[page],
+                            onDismiss = { screenModel.clearSelection() },
+                            onEdit = {
+                                editingMemory = selectedMemories[page]
+                                showDetailDialog = true
+                                screenModel.clearSelection()
+                            }
+                        )
+                    }
+                }
             }
+        }
+    }
+    
+    // 编辑对话框
+    if (showDetailDialog && editingMemory != null) {
+        Dialog(
+            onDismissRequest = { 
+                showDetailDialog = false 
+                editingMemory = null
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            MemoryDetailScreen(
+                memory = editingMemory!!,
+                onSave = { updatedMemory ->
+                    scope.launch {
+                        repository.update(updatedMemory)
+                        showDetailDialog = false
+                        editingMemory = null
+                    }
+                },
+                onDelete = {
+                    scope.launch {
+                        repository.delete(editingMemory!!)
+                        showDetailDialog = false
+                        editingMemory = null
+                    }
+                },
+                onDismiss = {
+                    showDetailDialog = false
+                    editingMemory = null
+                }
+            )
         }
     }
 }
@@ -140,7 +228,8 @@ fun MapScreen() {
 @Composable
 private fun MapMemoryDetailCard(
     memory: Memory,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -184,13 +273,23 @@ private fun MapMemoryDetailCard(
                     )
                 }
                 
-                // 关闭按钮
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "关闭",
-                        tint = JourneyLensColors.TextSecondary
-                    )
+                Row {
+                    // 编辑按钮
+                    IconButton(onClick = onEdit) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "编辑",
+                            tint = JourneyLensColors.AppleBlue
+                        )
+                    }
+                    // 关闭按钮
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "关闭",
+                            tint = JourneyLensColors.TextSecondary
+                        )
+                    }
                 }
             }
             
@@ -202,13 +301,13 @@ private fun MapMemoryDetailCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(memory.photoUris.size) { index ->
-                        coil3.compose.AsyncImage(
+                        AsyncImage(
                             model = memory.photoUris[index],
                             contentDescription = null,
                             modifier = Modifier
                                 .size(120.dp)
                                 .clip(RoundedCornerShape(12.dp)),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            contentScale = ContentScale.Crop
                         )
                     }
                 }

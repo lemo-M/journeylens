@@ -12,6 +12,6 @@ import com.lm.journeylens.core.database.entity.Memory
 @Composable
 expect fun MapView(
     memories: List<Memory>,
-    onMemoryClick: (Memory) -> Unit,
+    onMemoryClick: (List<Memory>) -> Unit,
     modifier: Modifier = Modifier
 )

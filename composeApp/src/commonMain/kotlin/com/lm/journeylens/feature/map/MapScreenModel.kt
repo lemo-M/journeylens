@@ -14,6 +14,17 @@ import kotlinx.coroutines.launch
 /**
  * 地图页面 ScreenModel
  */
+
+/**
+ * 地图 UI 状态
+ */
+data class MapUiState(
+    val isLoading: Boolean = true,
+    val memories: List<Memory> = emptyList(),
+    val selectedMemories: List<Memory> = emptyList()
+)
+
+
 class MapScreenModel(
     private val memoryRepository: MemoryRepository
 ) {
@@ -26,9 +37,6 @@ class MapScreenModel(
         loadMemories()
     }
     
-    /**
-     * 加载所有记忆点
-     */
     private fun loadMemories() {
         scope.launch {
             memoryRepository.getAllMemories().collect { memories ->
@@ -40,26 +48,14 @@ class MapScreenModel(
         }
     }
     
-    /**
-     * 选中记忆点
-     */
-    fun selectMemory(memory: Memory) {
-        _uiState.value = _uiState.value.copy(selectedMemory = memory)
+    fun selectMemories(memories: List<Memory>) {
+        // 按时间倒序排列（最新的在前面）
+        _uiState.value = _uiState.value.copy(
+            selectedMemories = memories.sortedByDescending { it.timestamp }
+        )
     }
     
-    /**
-     * 清除选中
-     */
     fun clearSelection() {
-        _uiState.value = _uiState.value.copy(selectedMemory = null)
+        _uiState.value = _uiState.value.copy(selectedMemories = emptyList())
     }
 }
-
-/**
- * 地图 UI 状态
- */
-data class MapUiState(
-    val isLoading: Boolean = true,
-    val memories: List<Memory> = emptyList(),
-    val selectedMemory: Memory? = null
-)

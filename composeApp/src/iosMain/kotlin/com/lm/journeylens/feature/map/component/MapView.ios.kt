@@ -18,7 +18,7 @@ import com.lm.journeylens.core.theme.JourneyLensColors
 @Composable
 actual fun MapView(
     memories: List<Memory>,
-    onMemoryClick: (Memory) -> Unit,
+    onMemoryClick: (List<Memory>) -> Unit,
     modifier: Modifier
 ) {
     // iOS 暂时显示占位符
