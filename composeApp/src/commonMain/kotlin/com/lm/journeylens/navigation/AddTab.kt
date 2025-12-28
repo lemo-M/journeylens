@@ -9,6 +9,8 @@ import com.lm.journeylens.feature.memory.AddMemoryScreen
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 
+import cafe.adriel.voyager.koin.getScreenModel
+
 /**
  * 添加 Tab - 导入照片/创建记忆
  */
@@ -29,7 +31,8 @@ object AddTab : Tab {
 
     @Composable
     override fun Content() {
-        val screenModel = cafe.adriel.voyager.koin.getScreenModel<com.lm.journeylens.feature.memory.AddMemoryScreenModel>()
+        // 使用 Voyager 的 getScreenModel 来获取并管理生命周期
+        val screenModel = getScreenModel<com.lm.journeylens.feature.memory.AddMemoryScreenModel>()
         AddMemoryScreen(screenModel)
     }
 }
