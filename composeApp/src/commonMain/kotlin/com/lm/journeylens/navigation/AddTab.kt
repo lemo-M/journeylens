@@ -1,7 +1,7 @@
 package com.lm.journeylens.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import cafe.adriel.voyager.koin.getScreenModel
@@ -34,10 +34,11 @@ object AddTab : Tab {
     override fun Content() {
         val screenModel = getScreenModel<AddMemoryScreenModel>()
         
-        // 每次 Content 被组合时都重新加载草稿
-        // 这确保从地图页跳转过来时能读取最新的草稿
-        LaunchedEffect(Unit) {
+        // 使用 DisposableEffect 确保每次 Tab 进入 Composition 时都会执行
+        // 这是处理 Tab 切换生命周期的更可靠方式
+        DisposableEffect(Unit) {
             screenModel.loadDraft()
+            onDispose { }
         }
         
         AddMemoryScreen(screenModel)
