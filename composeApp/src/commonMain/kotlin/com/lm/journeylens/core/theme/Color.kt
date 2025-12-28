@@ -20,7 +20,7 @@ object JourneyLensColors {
     val SurfaceLight = Color(0xFFF2F2F7)
 
     // 毛玻璃效果
-    val GlassBackground = Color(0xB3FFFFFF)  // 70% 白色
+    val GlassBackground = Color(0xF2FFFFFF)  // 95% 白色 (提高不透明度，防止地图背景干扰)
     val GlassBackgroundLight = Color(0x80FFFFFF)  // 50% 白色
 
     // 文字颜色

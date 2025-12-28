@@ -13,5 +13,6 @@ import com.lm.journeylens.core.database.entity.Memory
 expect fun MapView(
     memories: List<Memory>,
     onMemoryClick: (List<Memory>) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cameraControl: MapCameraControl? = null
 )

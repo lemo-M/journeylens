@@ -19,15 +19,9 @@ import com.lm.journeylens.core.theme.JourneyLensColors
 actual fun MapView(
     memories: List<Memory>,
     onMemoryClick: (List<Memory>) -> Unit,
-    modifier: Modifier
+    modifier: Modifier,
+    cameraControl: MapCameraControl?
 ) {
-    // iOS 暂时显示占位符
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(JourneyLensColors.SurfaceLight),
-        contentAlignment = Alignment.Center
-    ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)

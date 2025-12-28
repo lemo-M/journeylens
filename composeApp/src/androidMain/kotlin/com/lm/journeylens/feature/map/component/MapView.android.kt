@@ -13,6 +13,7 @@ import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.model.MarkerOptions
 import com.amap.api.maps.model.MyLocationStyle
 import com.lm.journeylens.core.database.entity.Memory
+import kotlinx.coroutines.flow.collectLatest
 
 private const val TAG = "AMapView"
 
@@ -23,7 +24,8 @@ private const val TAG = "AMapView"
 actual fun MapView(
     memories: List<Memory>,
     onMemoryClick: (List<Memory>) -> Unit,
-    modifier: Modifier
+    modifier: Modifier,
+    cameraControl: MapCameraControl?
 ) {
     val context = LocalContext.current
     
@@ -31,6 +33,28 @@ actual fun MapView(
     val mapView = remember {
         MapView(context).apply {
             onCreate(null)
+        }
+    }
+    
+    // 获取 AMap 对象 (异步获取可能还在初始化，但在 Compose 中通常这样直接访问属性不太安全，最好用 callback)
+    // 不过高德地图的 map 属性在 onCreate 之后通常可用。稳妥起见我们用 remember
+    var aMap: AMap? by remember { mutableStateOf(null) }
+    
+    // 监听相机控制事件
+    LaunchedEffect(cameraControl, aMap) {
+        val map = aMap ?: return@LaunchedEffect
+        cameraControl?.events?.collectLatest { event ->
+            when (event) {
+                is MapCameraControl.CameraEvent.MoveToCurrentLocation -> {
+                    map.myLocation?.let { location ->
+                        val latLng = LatLng(location.latitude, location.longitude)
+                        // 缩放并移动到当前位置 (缩放级别 15 - 街道级)
+                        map.animateCamera(
+                            CameraUpdateFactory.newLatLngZoom(latLng, 15f)
+                        )
+                    }
+                }
+            }
         }
     }
     
@@ -44,30 +68,42 @@ actual fun MapView(
     }
     
     AndroidView(
-        factory = { mapView },
+        factory = { 
+            mapView.apply {
+                // 初始化 AMap
+                if (map != null && aMap == null) {
+                    aMap = map
+                }
+            }
+        },
         update = { view ->
-            view.map?.let { aMap ->
+            // 确保 aMap 引用是最新的
+            if (aMap == null) aMap = view.map
+            
+            aMap?.let { map ->
                 // 设置地图类型为标准地图
-                aMap.mapType = AMap.MAP_TYPE_NORMAL
+                map.mapType = AMap.MAP_TYPE_NORMAL
                 
                 // 设置 UI 控件
-                aMap.uiSettings.apply {
-                    isZoomControlsEnabled = true   // 显示缩放按钮
+                map.uiSettings.apply {
+                    isZoomControlsEnabled = false   // 隐藏默认缩放按钮
                     isCompassEnabled = true        // 显示指南针
                     isScaleControlsEnabled = true  // 显示比例尺
-                    isMyLocationButtonEnabled = true  // 显示定位按钮
+                    isMyLocationButtonEnabled = false  // 隐藏默认定位按钮 (我们将使用自定义按钮)
                 }
                 
                 // 设置定位样式
                 val myLocationStyle = MyLocationStyle().apply {
-                    // 定位蓝点展现模式 - 只定位一次
-                    myLocationType(MyLocationStyle.LOCATION_TYPE_SHOW)
+                    // 定位蓝点展现模式 - 连续定位、蓝点不会移动到地图中心点，定位点依照设备方向旋转，并且蓝点会跟随设备移动。
+                    // 这里我们只需要显示蓝点，控制逻辑由自定义按钮处理
+                    myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER)
+                    interval(2000) // 定位间隔
                 }
-                aMap.myLocationStyle = myLocationStyle
-                aMap.isMyLocationEnabled = true  // 启用定位
+                map.myLocationStyle = myLocationStyle
+                map.isMyLocationEnabled = true  // 启用定位图层
                 
                 // 清除旧标记
-                aMap.clear()
+                map.clear()
                 
                 // 按位置分组记忆点（处理重叠问题）
                 val groupedMemories = memories.groupBy { 
@@ -88,7 +124,7 @@ actual fun MapView(
                         "${firstMemory.emoji} ${firstMemory.locationName ?: ""}"
                     }
                     
-                    val marker = aMap.addMarker(
+                    val marker = map.addMarker(
                         MarkerOptions()
                             .position(position)
                             .title(title)
@@ -99,20 +135,24 @@ actual fun MapView(
                 }
                 
                 // 设置标记点击事件
-                aMap.setOnMarkerClickListener { marker ->
+                map.setOnMarkerClickListener { marker ->
                     @Suppress("UNCHECKED_CAST")
                     val memoriesAtLocation = marker.`object` as? List<Memory>
                     // 返回所有记忆
                     memoriesAtLocation?.let { onMemoryClick(it) }
-                    true
+                    true // 消费事件
                 }
                 
-                // 移动相机到第一个记忆点或默认位置
-                if (memories.isNotEmpty()) {
+                // 首次加载且有数据时，移动相机到数据点
+                // 注意：这里需要避免每次重组都移动相机，可能会打断用户操作。
+                // 简单的做法是只在第一次非空时移动，或者不自动移动让用户自己探索。
+                // 目前逻辑暂且保留，或考虑优化为只在 memories 变化很大时移动。
+                // 为防止频繁移动，暂时不做全自动移动，除非完全重置。
+                 if (memories.isNotEmpty() && map.cameraPosition.zoom < 5) {
                     val targetPosition = LatLng(memories.first().latitude, memories.first().longitude)
-                     aMap.moveCamera(
+                     map.moveCamera(
                         CameraUpdateFactory.newCameraPosition(
-                            CameraPosition(targetPosition, 12f, 0f, 0f)
+                            CameraPosition(targetPosition, 10f, 0f, 0f)
                         )
                     )
                 }

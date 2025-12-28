@@ -14,11 +14,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -27,6 +29,7 @@ import coil3.compose.AsyncImage
 import com.lm.journeylens.core.database.entity.Memory
 import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.core.theme.JourneyLensColors
+import com.lm.journeylens.feature.map.component.MapCameraControl
 import com.lm.journeylens.feature.map.component.MapView
 import com.lm.journeylens.feature.memory.MemoryDetailScreen
 import kotlinx.coroutines.launch
@@ -44,6 +47,9 @@ fun MapScreen() {
     val repository: MemoryRepository = koinInject()
     val uiState by screenModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+    
+    // 相机控制器
+    val cameraControl = remember { MapCameraControl() }
     
     // 控制详情编辑对话框
     var showDetailDialog by remember { mutableStateOf(false) }
@@ -69,8 +75,27 @@ fun MapScreen() {
                 MapView(
                     memories = uiState.memories,
                     onMemoryClick = { memories -> screenModel.selectMemories(memories) },
+                    cameraControl = cameraControl,
                     modifier = Modifier.fillMaxSize()
                 )
+                
+                // 定位按钮 (自定义 FAB)
+                FloatingActionButton(
+                    onClick = {
+                        scope.launch {
+                            cameraControl.moveToCurrentLocation()
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = if (uiState.selectedMemories.isEmpty()) 32.dp else 400.dp) // 避开详情卡片
+                        .padding(bottom = 48.dp), // 额外留出底部导航栏高度
+                    containerColor = JourneyLensColors.Background,
+                    contentColor = JourneyLensColors.AppleBlue,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = "定位")
+                }
                 
                 // 顶部信息栏
                 Surface(
@@ -78,7 +103,8 @@ fun MapScreen() {
                         .align(Alignment.TopCenter)
                         .padding(16.dp),
                     shape = RoundedCornerShape(12.dp),
-                    color = JourneyLensColors.GlassBackground,
+                    // 使用稍微不透明一点的背景，防止看不清
+                    color = JourneyLensColors.SurfaceLight.copy(alpha = 0.95f),
                     shadowElevation = 4.dp
                 ) {
                     Row(
@@ -145,25 +171,32 @@ fun MapScreen() {
             if (selectedMemories.isNotEmpty()) {
                 val pagerState = rememberPagerState(pageCount = { selectedMemories.size })
                 
-                Column {
-                    // 页码指示器 (如果有多页)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // 页码指示器 (如果有多页) - 加背景胶囊
                     if (selectedMemories.size > 1) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.Center
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.3f), // 半透明黑色背景，增强对比度
+                            modifier = Modifier.padding(bottom = 8.dp)
                         ) {
-                            repeat(selectedMemories.size) { iteration ->
-                                val color = if (pagerState.currentPage == iteration) 
-                                    JourneyLensColors.AppleBlue else JourneyLensColors.TextTertiary.copy(alpha = 0.5f)
-                                Box(
-                                    modifier = Modifier
-                                        .padding(2.dp)
-                                        .clip(CircleShape)
-                                        .background(color)
-                                        .size(8.dp)
-                                )
+                            Row(
+                                modifier = Modifier
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                repeat(selectedMemories.size) { iteration ->
+                                    val color = if (pagerState.currentPage == iteration) 
+                                        Color.White else Color.White.copy(alpha = 0.5f)
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(3.dp)
+                                            .clip(CircleShape)
+                                            .background(color)
+                                            .size(6.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -183,6 +216,9 @@ fun MapScreen() {
                             }
                         )
                     }
+                    
+                    // 底部留白，为了不被 NavigationBar 遮挡
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -237,12 +273,16 @@ private fun MapMemoryDetailCard(
             .padding(16.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = JourneyLensColors.GlassBackground
+            // 使用更不透明的背景
+            containerColor = JourneyLensColors.SurfaceLight.copy(alpha = 0.98f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .padding(16.dp)
+                // 设置最小高度，防止滑动时因内容高度不一导致跳动
+                .heightIn(min = 280.dp) 
         ) {
             // 顶部栏
             Row(
@@ -326,18 +366,38 @@ private fun MapMemoryDetailCard(
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // 备注
-            memory.note?.let { note ->
-                if (note.isNotBlank()) {
-                    Text(
-                        text = note,
+            // 备注区域 (使用 Weight 让其占据固定空间，或者用 Spacer 撑满)
+            // 方案：给 Text 区域一个 minHeight，或者让 bottom row align bottom
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                 memory.note?.let { note ->
+                    if (note.isNotBlank()) {
+                         Text(
+                            text = note,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = JourneyLensColors.TextSecondary,
+                            maxLines = 3,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    } else {
+                         // 即使为空也占位，或者显示默认文案
+                         Text(
+                            text = "没有备注",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = JourneyLensColors.TextTertiary.copy(alpha = 0.5f)
+                         )
+                    }
+                } ?: run {
+                     Text(
+                        text = "没有备注",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = JourneyLensColors.TextSecondary,
-                        maxLines = 3
+                         color = JourneyLensColors.TextTertiary.copy(alpha = 0.5f)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
+           
+            Spacer(modifier = Modifier.height(8.dp))
             
             // 位置 + 照片数量
             Row(
