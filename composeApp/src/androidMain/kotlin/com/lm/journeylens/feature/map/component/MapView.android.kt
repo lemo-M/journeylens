@@ -11,6 +11,7 @@ import com.amap.api.maps.MapView
 import com.amap.api.maps.model.CameraPosition
 import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.model.MarkerOptions
+import com.amap.api.maps.model.MyLocationStyle
 import com.lm.journeylens.core.database.entity.Memory
 
 private const val TAG = "AMapView"
@@ -51,30 +52,58 @@ actual fun MapView(
                 
                 // 设置 UI 控件
                 aMap.uiSettings.apply {
-                    isZoomControlsEnabled = false  // 隐藏缩放按钮
-                    isCompassEnabled = false       // 隐藏指南针
+                    isZoomControlsEnabled = true   // 显示缩放按钮
+                    isCompassEnabled = true        // 显示指南针
                     isScaleControlsEnabled = true  // 显示比例尺
+                    isMyLocationButtonEnabled = true  // 显示定位按钮
                 }
+                
+                // 设置定位样式
+                val myLocationStyle = MyLocationStyle().apply {
+                    // 定位蓝点展现模式 - 只定位一次
+                    myLocationType(MyLocationStyle.LOCATION_TYPE_SHOW)
+                }
+                aMap.myLocationStyle = myLocationStyle
+                aMap.isMyLocationEnabled = true  // 启用定位
                 
                 // 清除旧标记
                 aMap.clear()
                 
+                // 按位置分组记忆点（处理重叠问题）
+                val groupedMemories = memories.groupBy { 
+                    // 使用 4 位小数精度分组（约 10米范围）
+                    String.format("%.4f,%.4f", it.latitude, it.longitude)
+                }
+                
                 // 添加记忆点标记
-                memories.forEach { memory ->
-                    val position = LatLng(memory.latitude, memory.longitude)
+                groupedMemories.forEach { (_, memoriesAtLocation) ->
+                    val firstMemory = memoriesAtLocation.first()
+                    val position = LatLng(firstMemory.latitude, firstMemory.longitude)
+                    val count = memoriesAtLocation.size
+                    
+                    // 标题显示数量（如果有多个）
+                    val title = if (count > 1) {
+                        "${firstMemory.emoji} 等 $count 条记忆"
+                    } else {
+                        "${firstMemory.emoji} ${firstMemory.locationName ?: ""}"
+                    }
+                    
                     val marker = aMap.addMarker(
                         MarkerOptions()
                             .position(position)
-                            .title("${memory.emoji} ${memory.locationName ?: ""}")
-                            .snippet(memory.note ?: "")
+                            .title(title)
+                            .snippet(if (count > 1) "点击查看详情" else (firstMemory.note ?: ""))
                     )
-                    marker?.`object` = memory
+                    // 存储该位置的所有记忆（用于后续展示列表）
+                    marker?.`object` = memoriesAtLocation
                 }
                 
                 // 设置标记点击事件
                 aMap.setOnMarkerClickListener { marker ->
-                    val memory = marker.`object` as? Memory
-                    memory?.let { onMemoryClick(it) }
+                    @Suppress("UNCHECKED_CAST")
+                    val memoriesAtLocation = marker.`object` as? List<Memory>
+                    // 返回第一个记忆（UI 层可以处理显示列表）
+                    memoriesAtLocation?.firstOrNull()?.let { onMemoryClick(it) }
                     true
                 }
                 
@@ -91,7 +120,7 @@ actual fun MapView(
                     )
                 )
                 
-                Log.d(TAG, "Map updated with ${memories.size} memories")
+                Log.d(TAG, "Map updated with ${memories.size} memories in ${groupedMemories.size} locations")
             }
         },
         modifier = modifier

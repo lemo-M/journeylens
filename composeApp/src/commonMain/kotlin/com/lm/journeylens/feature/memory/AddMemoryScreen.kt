@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -96,6 +97,10 @@ private fun LocationStep(
 ) {
     var showMapPicker by remember { mutableStateOf(false) }
     var isGettingLocation by remember { mutableStateOf(false) }
+    var locationError by remember { mutableStateOf<String?>(null) }
+    
+    val locationService: com.lm.journeylens.feature.memory.service.LocationService = org.koin.compose.koinInject()
+    val scope = rememberCoroutineScope()
     
     if (showMapPicker) {
         LocationPickerDialog(
@@ -137,25 +142,53 @@ private fun LocationStep(
             color = JourneyLensColors.TextSecondary
         )
         
+        // 错误提示
+        locationError?.let { error ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodySmall,
+                color = JourneyLensColors.ApplePink
+            )
+        }
+        
         Spacer(modifier = Modifier.height(32.dp))
         
         // 使用当前定位
         Button(
             onClick = { 
                 isGettingLocation = true
-                // TODO: 实际获取 GPS 定位
-                // 暂时使用模拟位置
-                onUseCurrentLocation(31.2304, 121.4737, "上海市")
+                locationError = null
+                scope.launch {
+                    val result = locationService.getCurrentLocation()
+                    isGettingLocation = false
+                    if (result != null) {
+                        onUseCurrentLocation(result.latitude, result.longitude, result.address)
+                    } else {
+                        locationError = "定位失败，请检查定位权限"
+                    }
+                }
             },
+            enabled = !isGettingLocation,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = JourneyLensColors.AppleBlue
             ),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.MyLocation, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("使用当前定位")
+            if (isGettingLocation) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = androidx.compose.ui.graphics.Color.White,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("定位中...")
+            } else {
+                Icon(Icons.Default.MyLocation, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("使用当前定位")
+            }
         }
         
         Spacer(modifier = Modifier.height(12.dp))
@@ -163,6 +196,7 @@ private fun LocationStep(
         // 地图选点
         OutlinedButton(
             onClick = { showMapPicker = true },
+            enabled = !isGettingLocation,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.outlinedButtonColors(

@@ -2,6 +2,7 @@ package com.lm.journeylens.core.di
 
 import com.lm.journeylens.feature.memory.service.ExifParser
 import com.lm.journeylens.feature.memory.service.LivePhotoService
+import com.lm.journeylens.feature.memory.service.LocationService
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -14,4 +15,8 @@ actual val platformModule = module {
     
     // 实况照片服务 - 需要 Android Context
     factory { LivePhotoService(androidContext()) }
+    
+    // 定位服务 - 需要 Android Context
+    factory { LocationService(androidContext()) }
 }
+

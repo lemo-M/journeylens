@@ -35,6 +35,8 @@ kotlin {
             implementation(libs.androidx.exifinterface)
             // 高德地图 SDK
             implementation("com.amap.api:3dmap:latest.integration")
+            // 高德定位 SDK
+            implementation("com.amap.api:location:latest.integration")
         }
         commonMain.dependencies {
             // --- Room 依赖 ---
