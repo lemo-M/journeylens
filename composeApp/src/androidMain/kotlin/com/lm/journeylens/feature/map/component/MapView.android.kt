@@ -1,5 +1,6 @@
 package com.lm.journeylens.feature.map.component
 
+import android.util.Log
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -9,6 +10,7 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.Style
 
 /**
  * Android MapLibre 地图实现
@@ -27,15 +29,41 @@ actual fun MapView(
         true
     }
     
-    // 使用简约白色地图样式 (Stadia Maps Alidade Smooth - 免费)
-    val styleUrl = "https://tiles.stadiamaps.com/styles/alidade_smooth.json"
+    // 使用 MapLibre 内置的 Demo 样式（更稳定）
+    // 或者使用 OSM Raster 样式
+    val styleJson = """
+    {
+        "version": 8,
+        "name": "JourneyLens Light",
+        "sources": {
+            "osm": {
+                "type": "raster",
+                "tiles": [
+                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                ],
+                "tileSize": 256,
+                "attribution": "© OpenStreetMap contributors"
+            }
+        },
+        "layers": [
+            {
+                "id": "osm-tiles",
+                "type": "raster",
+                "source": "osm",
+                "minzoom": 0,
+                "maxzoom": 19
+            }
+        ]
+    }
+    """.trimIndent()
     
     AndroidView(
         factory = { ctx ->
             MapView(ctx).apply {
                 getMapAsync { mapLibreMap ->
-                    // 设置地图样式
-                    mapLibreMap.setStyle(styleUrl) { style ->
+                    // 使用内联 JSON 样式（避免网络请求）
+                    mapLibreMap.setStyle(Style.Builder().fromJson(styleJson)) { style ->
+                        Log.d("MapView", "Style loaded successfully")
                         // 设置初始相机位置（中国中心）
                         mapLibreMap.cameraPosition = CameraPosition.Builder()
                             .target(LatLng(35.0, 105.0))
