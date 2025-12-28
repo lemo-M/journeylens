@@ -193,6 +193,20 @@ private fun PendingImportCard(
     item: PendingImport,
     onLocationUpdate: (Double, Double) -> Unit
 ) {
+    // 控制地图选点对话框显示
+    var showLocationPicker by remember { mutableStateOf(false) }
+    
+    // 显示地图选点对话框
+    if (showLocationPicker) {
+        com.lm.journeylens.feature.memory.component.LocationPickerDialog(
+            onDismiss = { showLocationPicker = false },
+            onLocationSelected = { lat, lng ->
+                onLocationUpdate(lat, lng)
+                showLocationPicker = false
+            }
+        )
+    }
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -281,9 +295,7 @@ private fun PendingImportCard(
             
             // 编辑按钮
             if (item.latitude == null || item.isSuggested) {
-                TextButton(onClick = {
-                    // TODO: 打开地图选点
-                }) {
+                TextButton(onClick = { showLocationPicker = true }) {
                     Text("选点", color = JourneyLensColors.AppleBlue)
                 }
             }
