@@ -39,6 +39,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 
+import com.lm.journeylens.feature.memory.service.DraftService
+import com.lm.journeylens.feature.memory.AddMemoryUiState
+import com.lm.journeylens.feature.memory.ImportStep
+import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
+import com.lm.journeylens.navigation.AddTab
+
 /**
  * 地图页面 - 战争迷雾探索地图
  */
@@ -46,8 +52,11 @@ import org.koin.compose.koinInject
 fun MapScreen() {
     val screenModel: MapScreenModel = koinInject()
     val repository: MemoryRepository = koinInject()
+    val draftService: DraftService = koinInject()
     val uiState by screenModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+    
+    val tabNavigator = LocalTabNavigator.current
     
     // 相机控制器
     val cameraControl = remember { MapCameraControl() }
@@ -77,6 +86,10 @@ fun MapScreen() {
                     memories = uiState.memories,
                     onMemoryClick = { memories -> screenModel.selectMemories(memories) },
                     cameraControl = cameraControl,
+                    cameraPosition = uiState.cameraPosition,
+                    onCameraPositionChange = { pos -> 
+                        screenModel.updateCameraPosition(pos.latitude, pos.longitude, pos.zoom)
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
                 
@@ -174,14 +187,17 @@ fun MapScreen() {
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
             val selectedMemories = uiState.selectedMemories
+            // 增加一页用于"添加新记忆"
+            val pageCount = selectedMemories.size + 1
+            
             if (selectedMemories.isNotEmpty()) {
-                val pagerState = rememberPagerState(pageCount = { selectedMemories.size })
+                val pagerState = rememberPagerState(pageCount = { pageCount })
                 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // 页码指示器 (如果有多页) - 加背景胶囊
-                    if (selectedMemories.size > 1) {
+                    if (pageCount > 1) {
                         Surface(
                             shape = CircleShape,
                             color = Color.Black.copy(alpha = 0.3f), // 半透明黑色背景，增强对比度
@@ -192,7 +208,7 @@ fun MapScreen() {
                                     .padding(horizontal = 8.dp, vertical = 4.dp),
                                 horizontalArrangement = Arrangement.Center
                             ) {
-                                repeat(selectedMemories.size) { iteration ->
+                                repeat(pageCount) { iteration ->
                                     val color = if (pagerState.currentPage == iteration) 
                                         Color.White else Color.White.copy(alpha = 0.5f)
                                     Box(
@@ -209,18 +225,44 @@ fun MapScreen() {
                     
                     HorizontalPager(
                         state = pagerState,
-                        contentPadding = PaddingValues(horizontal = if (selectedMemories.size > 1) 16.dp else 0.dp),
+                        contentPadding = PaddingValues(horizontal = if (pageCount > 1) 16.dp else 0.dp),
                         pageSpacing = 16.dp
                     ) { page ->
-                        MapMemoryDetailCard(
-                            memory = selectedMemories[page],
-                            onDismiss = { screenModel.clearSelection() },
-                            onEdit = {
-                                editingMemory = selectedMemories[page]
-                                showDetailDialog = true
-                                screenModel.clearSelection()
-                            }
-                        )
+                        if (page < selectedMemories.size) {
+                            MapMemoryDetailCard(
+                                memory = selectedMemories[page],
+                                onDismiss = { screenModel.clearSelection() },
+                                onEdit = {
+                                    editingMemory = selectedMemories[page]
+                                    showDetailDialog = true
+                                    screenModel.clearSelection()
+                                }
+                            )
+                        } else {
+                            // 最后一页："添加新记忆"卡片
+                            val currentLocMemory = selectedMemories.firstOrNull()
+                            AddMemoryCard(
+                                locationName = currentLocMemory?.locationName ?: "此处",
+                                onAdd = {
+                                    currentLocMemory?.let { m ->
+                                        // 1. 保存包含位置信息的 Draft
+                                        val draft = AddMemoryUiState(
+                                            step = ImportStep.PHOTOS, // 直接跳到选照片
+                                            latitude = m.latitude,
+                                            longitude = m.longitude,
+                                            locationName = m.locationName,
+                                            address = m.address
+                                        )
+                                        scope.launch {
+                                            draftService.saveDraft(draft)
+                                            // 2. 跳转到 AddTab
+                                            tabNavigator.current = AddTab
+                                        }
+                                    }
+                                },
+                                onDismiss = { screenModel.clearSelection() }
+                            )
+                        }
                     }
                     
                     // 底部留白，为了不被 NavigationBar 遮挡
@@ -260,6 +302,97 @@ fun MapScreen() {
                     editingMemory = null
                 }
             )
+        }
+    }
+}
+
+/**
+ * "在此处添加记忆" 卡片
+ */
+@Composable
+private fun AddMemoryCard(
+    locationName: String,
+    onAdd: () -> Unit,
+    onDismiss: () -> Unit
+) {
+     Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .heightIn(min = 320.dp, max = 400.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = JourneyLensColors.SurfaceLight.copy(alpha = 0.98f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // 图标
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(JourneyLensColors.AppleBlue.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        tint = JourneyLensColors.AppleBlue,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    text = "在此处添加记忆",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = JourneyLensColors.TextPrimary
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "复用 $locationName 的位置信息",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = JourneyLensColors.TextSecondary
+                )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Button(
+                    onClick = onAdd,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = JourneyLensColors.AppleBlue
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("去添加")
+                }
+            }
+            
+            // 关闭按钮
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "关闭",
+                    tint = JourneyLensColors.TextSecondary
+                )
+            }
         }
     }
 }

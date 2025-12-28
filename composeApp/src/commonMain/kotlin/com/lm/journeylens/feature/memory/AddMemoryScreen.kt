@@ -49,7 +49,13 @@ fun AddMemoryScreen(screenModel: AddMemoryScreenModel) {
             .fillMaxSize()
             .background(JourneyLensColors.Background)
     ) {
-        when (uiState.step) {
+       // 每次进入页面时重新加载草稿 (以防从地图页"添加新记忆"跳转过来)
+    LaunchedEffect(Unit) {
+        screenModel.loadDraft()
+    }
+    
+    val currentStep = uiState.step
+        when (currentStep) {
             ImportStep.LOCATION -> LocationStep(
                 onUseCurrentLocation = { lat, lng, name ->
                     screenModel.setLocationFromGps(lat, lng, name)

@@ -12,22 +12,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * 地图页面 ScreenModel
- */
-
-/**
  * 地图 UI 状态
  */
 data class MapUiState(
     val isLoading: Boolean = true,
     val memories: List<Memory> = emptyList(),
-    val selectedMemories: List<Memory> = emptyList()
+    val selectedMemories: List<Memory> = emptyList(),
+    // 相机位置 (latitude, longitude, zoom)
+    val cameraPosition: MapCameraPosition? = null
+)
+
+data class MapCameraPosition(
+    val latitude: Double,
+    val longitude: Double,
+    val zoom: Float
 )
 
 
 class MapScreenModel(
     private val memoryRepository: MemoryRepository
-) {
+) : ScreenModel { // 确保实现了 Voyager 的 ScreenModel
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     private val _uiState = MutableStateFlow(MapUiState())
@@ -57,5 +61,11 @@ class MapScreenModel(
     
     fun clearSelection() {
         _uiState.value = _uiState.value.copy(selectedMemories = emptyList())
+    }
+
+    fun updateCameraPosition(latitude: Double, longitude: Double, zoom: Float) {
+        _uiState.value = _uiState.value.copy(
+            cameraPosition = MapCameraPosition(latitude, longitude, zoom)
+        )
     }
 }

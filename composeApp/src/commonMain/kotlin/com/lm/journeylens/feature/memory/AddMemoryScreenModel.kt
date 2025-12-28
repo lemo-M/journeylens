@@ -25,11 +25,17 @@ class AddMemoryScreenModel(
     val uiState: StateFlow<AddMemoryUiState> = _uiState.asStateFlow()
     
     init {
-        // 加载草稿
+        loadDraft()
+    }
+    
+    fun loadDraft() {
         screenModelScope.launch {
             val draft = draftService.loadDraft()
             if (draft != null) {
                 _uiState.value = draft
+            } else {
+                // 如果没有草稿，初始化默认状态
+                _uiState.value = AddMemoryUiState()
             }
         }
     }

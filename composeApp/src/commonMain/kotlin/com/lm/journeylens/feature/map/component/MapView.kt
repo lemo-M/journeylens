@@ -9,10 +9,14 @@ import com.lm.journeylens.core.database.entity.Memory
  * Android 使用 MapLibre
  * iOS 使用 MapKit（待实现）
  */
+import com.lm.journeylens.feature.map.MapCameraPosition
+
 @Composable
 expect fun MapView(
     memories: List<Memory>,
     onMemoryClick: (List<Memory>) -> Unit,
     modifier: Modifier = Modifier,
-    cameraControl: MapCameraControl? = null
+    cameraControl: MapCameraControl? = null,
+    cameraPosition: MapCameraPosition? = null,
+    onCameraPositionChange: ((MapCameraPosition) -> Unit)? = null
 )
