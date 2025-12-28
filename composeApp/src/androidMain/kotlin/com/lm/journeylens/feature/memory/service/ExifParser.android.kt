@@ -1,12 +1,16 @@
 package com.lm.journeylens.feature.memory.service
 
+import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 import com.lm.journeylens.feature.memory.model.ExifData
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+private const val TAG = "ExifParser"
 
 /**
  * Android 平台 EXIF 解析器实现
@@ -19,25 +23,35 @@ actual class ExifParser(
     actual suspend fun parseExif(photoUri: String): ExifData {
         return try {
             val uri = Uri.parse(photoUri)
+            Log.d(TAG, "Parsing photo: $photoUri")
             
             // 先尝试从 EXIF 读取
             val exifData = parseFromExif(uri)
+            Log.d(TAG, "EXIF result: lat=${exifData.latitude}, lng=${exifData.longitude}, time=${exifData.timestamp}")
             
             // 如果 EXIF 没有位置，尝试从 MediaStore 读取
             if (!exifData.hasLocation) {
-                val mediaStoreData = parseFromMediaStore(uri)
-                if (mediaStoreData.hasLocation) {
+                Log.d(TAG, "No EXIF location, trying MediaStore...")
+                
+                // 尝试多种方式获取 MediaStore ID
+                val mediaStoreData = parseFromMediaStoreByUri(uri)
+                    ?: parseFromMediaStoreById(uri)
+                
+                if (mediaStoreData != null && mediaStoreData.hasLocation) {
+                    Log.d(TAG, "MediaStore result: lat=${mediaStoreData.latitude}, lng=${mediaStoreData.longitude}")
                     return ExifData(
                         latitude = mediaStoreData.latitude,
                         longitude = mediaStoreData.longitude,
                         timestamp = exifData.timestamp ?: mediaStoreData.timestamp
                     )
+                } else {
+                    Log.d(TAG, "MediaStore also has no location")
                 }
             }
             
             exifData
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error parsing: ${e.message}", e)
             ExifData(null, null, null)
         }
     }
@@ -70,20 +84,21 @@ actual class ExifParser(
                 timestamp = timestamp
             )
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "EXIF parse error: ${e.message}")
             ExifData(null, null, null)
         }
     }
     
     /**
-     * 从 MediaStore 解析（系统数据库）
+     * 直接使用 URI 查询 MediaStore
      */
-    private fun parseFromMediaStore(uri: Uri): ExifData {
+    private fun parseFromMediaStoreByUri(uri: Uri): ExifData? {
         return try {
             val projection = arrayOf(
                 MediaStore.Images.Media.LATITUDE,
                 MediaStore.Images.Media.LONGITUDE,
-                MediaStore.Images.Media.DATE_TAKEN
+                MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media._ID
             )
             
             context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
@@ -92,9 +107,21 @@ actual class ExifParser(
                     val lngIndex = cursor.getColumnIndex(MediaStore.Images.Media.LONGITUDE)
                     val dateIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)
                     
-                    val latitude = if (latIndex >= 0) cursor.getDouble(latIndex) else 0.0
-                    val longitude = if (lngIndex >= 0) cursor.getDouble(lngIndex) else 0.0
-                    val dateTaken = if (dateIndex >= 0) cursor.getLong(dateIndex) else 0L
+                    var latitude = 0.0
+                    var longitude = 0.0
+                    var dateTaken = 0L
+                    
+                    if (latIndex >= 0 && !cursor.isNull(latIndex)) {
+                        latitude = cursor.getDouble(latIndex)
+                    }
+                    if (lngIndex >= 0 && !cursor.isNull(lngIndex)) {
+                        longitude = cursor.getDouble(lngIndex)
+                    }
+                    if (dateIndex >= 0 && !cursor.isNull(dateIndex)) {
+                        dateTaken = cursor.getLong(dateIndex)
+                    }
+                    
+                    Log.d(TAG, "MediaStore by URI: lat=$latitude, lng=$longitude, date=$dateTaken")
                     
                     // 验证位置是否有效
                     val validLocation = latitude != 0.0 || longitude != 0.0
@@ -106,11 +133,35 @@ actual class ExifParser(
                     )
                 }
             }
-            
-            ExifData(null, null, null)
+            null
         } catch (e: Exception) {
-            e.printStackTrace()
-            ExifData(null, null, null)
+            Log.e(TAG, "MediaStore by URI error: ${e.message}")
+            null
+        }
+    }
+    
+    /**
+     * 通过从 URI 提取 ID 查询 MediaStore
+     * 适用于 Photo Picker 返回的 picker:// 或 content://media/ URI
+     */
+    private fun parseFromMediaStoreById(uri: Uri): ExifData? {
+        return try {
+            // 尝试从 URI 路径中提取 ID
+            val id = ContentUris.parseId(uri)
+            if (id <= 0) return null
+            
+            Log.d(TAG, "Extracted media ID: $id")
+            
+            // 构建 MediaStore URI
+            val mediaUri = ContentUris.withAppendedId(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                id
+            )
+            
+            return parseFromMediaStoreByUri(mediaUri)
+        } catch (e: Exception) {
+            Log.e(TAG, "MediaStore by ID error: ${e.message}")
+            null
         }
     }
     
