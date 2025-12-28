@@ -257,12 +257,14 @@ private fun PhotosStep(
         Spacer(modifier = Modifier.height(16.dp))
         
         // 照片网格
-        LazyRow(
+        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.weight(1f)
         ) {
             // 已选照片
-            itemsIndexed(photoUris) { index, uri ->
+            androidx.compose.foundation.lazy.grid.itemsIndexed(photoUris) { index, uri ->
                 PhotoThumbnail(
                     uri = uri,
                     onRemove = { onRemovePhoto(index) }
@@ -273,7 +275,7 @@ private fun PhotosStep(
             item {
                 Box(
                     modifier = Modifier
-                        .size(120.dp)
+                        .aspectRatio(1f) // 保持正方形
                         .clip(RoundedCornerShape(12.dp))
                         .background(JourneyLensColors.SurfaceLight)
                         .border(
@@ -293,7 +295,7 @@ private fun PhotosStep(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "添加照片",
+                            "添加",
                             style = MaterialTheme.typography.labelSmall,
                             color = JourneyLensColors.AppleBlue
                         )
@@ -328,7 +330,7 @@ private fun PhotoThumbnail(
     onRemove: () -> Unit
 ) {
     Box(
-        modifier = Modifier.size(120.dp)
+        modifier = Modifier.aspectRatio(1f)
     ) {
         AsyncImage(
             model = uri,

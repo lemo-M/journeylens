@@ -126,6 +126,11 @@ fun MapScreen() {
                 
                 // 空状态提示
                 if (uiState.memories.isEmpty()) {
+                    // 如果没有记忆，尝试定位到当前位置
+                    LaunchedEffect(Unit) {
+                        cameraControl.moveToCurrentLocation()
+                    }
+                    
                     Surface(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -282,7 +287,7 @@ private fun MapMemoryDetailCard(
             modifier = Modifier
                 .padding(16.dp)
                 // 设置最小高度，防止滑动时因内容高度不一导致跳动
-                .heightIn(min = 280.dp) 
+                .heightIn(min = 320.dp, max = 400.dp) // 增加最大高度限制
         ) {
             // 顶部栏
             Row(
@@ -367,9 +372,11 @@ private fun MapMemoryDetailCard(
             Spacer(modifier = Modifier.height(12.dp))
             
             // 备注区域 (使用 Weight 让其占据固定空间，或者用 Spacer 撑满)
-            // 方案：给 Text 区域一个 minHeight，或者让 bottom row align bottom
+            // 支持垂直滑动，移除行数限制
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
             ) {
                  memory.note?.let { note ->
                     if (note.isNotBlank()) {
@@ -377,8 +384,8 @@ private fun MapMemoryDetailCard(
                             text = note,
                             style = MaterialTheme.typography.bodyMedium,
                             color = JourneyLensColors.TextSecondary,
-                            maxLines = 3,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            // maxLines = 3, // 移除行数限制
+                            // overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     } else {
                          // 即使为空也占位，或者显示默认文案
