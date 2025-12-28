@@ -39,8 +39,8 @@ val featureModule = module {
     // Map ScreenModel
     factory { MapScreenModel(get()) }
     
-    // AddMemory ScreenModel (只需要 Repository)
-    factory { AddMemoryScreenModel(get()) }
+    // AddMemory ScreenModel (Repository + DraftService)
+    factory { AddMemoryScreenModel(get(), get()) }
     
     // Timeline ScreenModel
     factory { TimelineScreenModel(get()) }

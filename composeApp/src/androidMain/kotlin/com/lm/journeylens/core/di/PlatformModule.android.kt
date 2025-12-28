@@ -18,5 +18,8 @@ actual val platformModule = module {
     
     // 定位服务 - 需要 Android Context
     factory { LocationService(androidContext()) }
+    
+    // 草稿服务 - 需要 Android Context
+    factory { com.lm.journeylens.feature.memory.service.DraftService(androidContext()) }
 }
 

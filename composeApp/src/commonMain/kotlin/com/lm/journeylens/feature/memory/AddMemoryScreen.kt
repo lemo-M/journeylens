@@ -27,7 +27,7 @@ import com.lm.journeylens.feature.memory.component.EmojiPickerDialog
 import com.lm.journeylens.feature.memory.component.LocationPickerDialog
 import com.lm.journeylens.feature.memory.model.PRESET_EMOJIS
 import com.lm.journeylens.feature.memory.service.rememberPhotoPicker
-import org.koin.compose.koinInject
+import cafe.adriel.voyager.koin.getScreenModel
 
 /**
  * 添加记忆页面
@@ -35,7 +35,7 @@ import org.koin.compose.koinInject
  */
 @Composable
 fun AddMemoryScreen() {
-    val screenModel: AddMemoryScreenModel = koinInject()
+    val screenModel = getScreenModel<AddMemoryScreenModel>()
     val uiState by screenModel.uiState.collectAsState()
     
     Box(
