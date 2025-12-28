@@ -10,18 +10,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import com.lm.journeylens.core.database.entity.Memory
 import com.lm.journeylens.core.theme.JourneyLensColors
-import kotlin.math.PI
 import kotlin.math.cos
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
  * 螺旋时间轴组件
  * 使用阿基米德螺旋线展示记忆点
+ * 每个点显示自定义 emoji
  */
 @Composable
 fun SpiralTimeline(
@@ -84,6 +84,7 @@ fun SpiralTimeline(
             
             drawMemoryPoint(
                 position = pos,
+                emoji = memory.emoji,
                 isSelected = false,
                 scale = scale
             )
@@ -164,34 +165,48 @@ private fun calculateSpiralPosition(
 }
 
 /**
- * 绘制记忆点
+ * 绘制记忆点（带 emoji）
  */
 private fun DrawScope.drawMemoryPoint(
     position: Offset,
+    emoji: String,
     isSelected: Boolean,
     scale: Float
 ) {
-    val baseRadius = if (isSelected) 18f else 12f
+    val baseRadius = if (isSelected) 18f else 14f
     val radius = baseRadius * scale
     
     // 外圈光晕
     drawCircle(
-        color = JourneyLensColors.AppleBlue.copy(alpha = 0.2f),
-        radius = radius * 1.5f,
+        color = JourneyLensColors.AppleBlue.copy(alpha = 0.15f),
+        radius = radius * 1.8f,
         center = position
     )
     
-    // 主圆
+    // 背景圆（白色）
     drawCircle(
-        color = JourneyLensColors.AppleBlue,
+        color = Color.White,
         radius = radius,
         center = position
     )
     
-    // 内圈高光
+    // 边框
     drawCircle(
-        color = Color.White.copy(alpha = 0.5f),
-        radius = radius * 0.4f,
-        center = Offset(position.x - radius * 0.2f, position.y - radius * 0.2f)
+        color = JourneyLensColors.AppleBlue.copy(alpha = 0.3f),
+        radius = radius,
+        center = position,
+        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f * scale)
     )
+    
+    // 绘制 emoji 文字
+    drawContext.canvas.nativeCanvas.apply {
+        val textSize = radius * 1.2f
+        val paint = android.graphics.Paint().apply {
+            this.textSize = textSize
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        // 垂直居中调整
+        val yOffset = textSize * 0.35f
+        drawText(emoji, position.x, position.y + yOffset, paint)
+    }
 }

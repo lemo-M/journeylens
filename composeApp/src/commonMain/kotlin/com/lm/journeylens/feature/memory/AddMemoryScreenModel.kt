@@ -179,6 +179,17 @@ class AddMemoryScreenModel(
     }
     
     /**
+     * 更新待审核项的 emoji
+     */
+    fun updatePendingEmoji(index: Int, emoji: String) {
+        val currentList = _uiState.value.pendingImports.toMutableList()
+        if (index in currentList.indices) {
+            currentList[index] = currentList[index].copy(emoji = emoji)
+            _uiState.value = _uiState.value.copy(pendingImports = currentList)
+        }
+    }
+    
+    /**
      * 确认导入所有照片
      */
     fun confirmImport() {
@@ -194,6 +205,7 @@ class AddMemoryScreenModel(
                         timestamp = pending.timestamp ?: System.currentTimeMillis(),
                         photoUri = pending.photoUri,
                         videoUri = pending.videoUri,
+                        emoji = pending.emoji,
                         isAutoLocated = pending.isAutoLocated,
                         isLivePhoto = pending.isLivePhoto
                     )

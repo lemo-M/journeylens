@@ -46,6 +46,15 @@ sealed class PhotoImportResult {
 }
 
 /**
+ * 预设 emoji 列表
+ */
+val PRESET_EMOJIS = listOf(
+    "📍", "🏠", "🏢", "🎉", "🍜", "☕", "🎬", "🎵",
+    "✈️", "🚗", "🚇", "🏖️", "⛰️", "🌳", "🌸", "🌙",
+    "❤️", "⭐", "🔥", "💡", "📚", "🎮", "🏃", "🛒"
+)
+
+/**
  * 待审核的导入项
  */
 data class PendingImport(
@@ -57,5 +66,6 @@ data class PendingImport(
     val isAutoLocated: Boolean,
     val isSuggested: Boolean = false,  // 是否是时间推测的位置
     val isLivePhoto: Boolean = videoUri != null,  // 是否为实况照片
+    val emoji: String = "📍",  // 自定义 emoji
     var isConfirmed: Boolean = false
 )

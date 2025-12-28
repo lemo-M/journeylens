@@ -27,6 +27,10 @@ data class Memory(
     val title: String? = null,  // 可选标题
     val note: String? = null,  // 可选备注
     
+    // 标记和标签
+    val emoji: String = "📍",  // 自定义 emoji 标记 (默认📍)
+    val label: String? = null,  // 自定义标签文字 (限制4字符)
+    
     // 元数据
     val mood: String? = null,  // 心情标签
     val isAutoLocated: Boolean = true,  // 是否自动定位（EXIF）

@@ -7,11 +7,11 @@ import com.lm.journeylens.core.database.entity.Memory
 
 /**
  * JourneyLens 应用数据库
- * version 2: 添加 videoUri 和 isLivePhoto 字段
+ * version 3: 添加 emoji 和 label 字段
  */
 @Database(
     entities = [Memory::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
