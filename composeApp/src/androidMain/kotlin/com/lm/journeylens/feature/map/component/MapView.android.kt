@@ -53,8 +53,11 @@ actual fun MapView(
                 is MapCameraControl.CameraEvent.MoveToCurrentLocation -> {
                     map.myLocation?.let { location ->
                         val latLng = LatLng(location.latitude, location.longitude)
+                        // 使用 500ms 动画时长使移动更流畅
                         map.animateCamera(
-                            CameraUpdateFactory.newLatLngZoom(latLng, 15f)
+                            CameraUpdateFactory.newLatLngZoom(latLng, 15f),
+                            500, // 动画持续时间 (毫秒)
+                            null // 动画回调
                         )
                     }
                 }

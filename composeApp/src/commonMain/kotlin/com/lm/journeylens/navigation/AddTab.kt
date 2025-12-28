@@ -1,10 +1,11 @@
 package com.lm.journeylens.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import cafe.adriel.voyager.koin.getScreenModel
+import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.Tab
 import cafe.adriel.voyager.navigator.tab.TabOptions
 import com.lm.journeylens.feature.memory.AddMemoryScreen
@@ -33,12 +34,14 @@ object AddTab : Tab {
     @Composable
     override fun Content() {
         val screenModel = getScreenModel<AddMemoryScreenModel>()
+        val tabNavigator = LocalTabNavigator.current
         
-        // 使用 DisposableEffect 确保每次 Tab 进入 Composition 时都会执行
-        // 这是处理 Tab 切换生命周期的更可靠方式
-        DisposableEffect(Unit) {
-            screenModel.loadDraft()
-            onDispose { }
+        // 监听当前 Tab，当 Tab 变为 AddTab 时重新加载 Draft
+        // 这确保从 MapScreen 点击"去添加"后 Draft 能被正确加载
+        LaunchedEffect(tabNavigator.current) {
+            if (tabNavigator.current == this@AddTab) {
+                screenModel.loadDraft()
+            }
         }
         
         AddMemoryScreen(screenModel)

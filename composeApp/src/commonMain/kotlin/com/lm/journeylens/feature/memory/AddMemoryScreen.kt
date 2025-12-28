@@ -44,11 +44,8 @@ import cafe.adriel.voyager.koin.getScreenModel
 fun AddMemoryScreen(screenModel: AddMemoryScreenModel) {
     val uiState by screenModel.uiState.collectAsState()
     
-    // 每次显示页面时重新加载草稿
-    // 使用 rememberUpdatedState 确保每次 Compose 时都会检查
-    LaunchedEffect(screenModel) {
-        screenModel.loadDraft()
-    }
+    // Draft 加载由 AddTab 的 LaunchedEffect 负责
+    // 不在这里重复调用，避免时序冲突
     
     val currentStep = uiState.step
     
@@ -267,11 +264,12 @@ private fun PhotosStep(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // 照片网格
+        // 照片网格 - 添加顶部 padding 防止删除按钮被截断
         LazyVerticalGrid(
             columns = GridCells.Fixed(3),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 8.dp), // 给顶部留出空间
             modifier = Modifier.weight(1f)
         ) {
             // 已选照片
@@ -282,33 +280,44 @@ private fun PhotosStep(
                 )
             }
             
-            // 添加按钮
+            // 添加按钮 - 始终显示，满 20 张时变灰禁用
             item {
+                val isEnabled = photoUris.size < 20
                 Box(
                     modifier = Modifier
                         .aspectRatio(1f) // 保持正方形
+                        .padding(top = 6.dp, end = 6.dp) // 与照片缩略图保持一致的 padding
                         .clip(RoundedCornerShape(12.dp))
-                        .background(JourneyLensColors.SurfaceLight)
+                        .background(
+                            if (isEnabled) JourneyLensColors.SurfaceLight 
+                            else JourneyLensColors.SurfaceLight.copy(alpha = 0.5f)
+                        )
                         .border(
                             2.dp,
-                            JourneyLensColors.AppleBlue.copy(alpha = 0.5f),
+                            if (isEnabled) JourneyLensColors.AppleBlue.copy(alpha = 0.5f)
+                            else JourneyLensColors.TextTertiary.copy(alpha = 0.3f),
                             RoundedCornerShape(12.dp)
                         )
-                        .clickable { launchPicker() },
+                        .then(
+                            if (isEnabled) Modifier.clickable { launchPicker() }
+                            else Modifier
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             Icons.Default.Add,
                             contentDescription = "添加照片",
-                            tint = JourneyLensColors.AppleBlue,
+                            tint = if (isEnabled) JourneyLensColors.AppleBlue 
+                                   else JourneyLensColors.TextTertiary,
                             modifier = Modifier.size(32.dp)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "添加",
+                            if (isEnabled) "添加" else "已满",
                             style = MaterialTheme.typography.labelSmall,
-                            color = JourneyLensColors.AppleBlue
+                            color = if (isEnabled) JourneyLensColors.AppleBlue 
+                                    else JourneyLensColors.TextTertiary
                         )
                     }
                 }
@@ -341,7 +350,9 @@ private fun PhotoThumbnail(
     onRemove: () -> Unit
 ) {
     Box(
-        modifier = Modifier.aspectRatio(1f)
+        modifier = Modifier
+            .aspectRatio(1f)
+            .padding(top = 6.dp, end = 6.dp) // 给删除按钮留出空间
     ) {
         AsyncImage(
             model = uri,
@@ -352,22 +363,22 @@ private fun PhotoThumbnail(
             contentScale = ContentScale.Crop
         )
         
-        // 删除按钮
-        IconButton(
-            onClick = onRemove,
+        // 删除按钮 - 更小更精致
+        Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .size(28.dp)
-                .background(
-                    JourneyLensColors.ApplePink,
-                    CircleShape
-                )
+                .offset(x = 6.dp, y = (-6).dp) // 偏移到图片角落外
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(JourneyLensColors.TextSecondary.copy(alpha = 0.8f))
+                .clickable { onRemove() },
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.Close,
                 contentDescription = "删除",
                 tint = androidx.compose.ui.graphics.Color.White,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(12.dp)
             )
         }
     }

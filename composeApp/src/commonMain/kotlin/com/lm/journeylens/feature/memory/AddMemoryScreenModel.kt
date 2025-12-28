@@ -24,9 +24,7 @@ class AddMemoryScreenModel(
     private val _uiState = MutableStateFlow(AddMemoryUiState())
     val uiState: StateFlow<AddMemoryUiState> = _uiState.asStateFlow()
     
-    init {
-        loadDraft()
-    }
+    // loadDraft() 由 AddTab 的 LaunchedEffect 调用，不在 init 中调用
     
     fun loadDraft() {
         screenModelScope.launch {
@@ -85,12 +83,17 @@ class AddMemoryScreenModel(
     }
     
     /**
-     * 步骤 2: 添加照片
+     * 步骤 2: 添加照片 (最多 20 张)
      */
     fun addPhotos(photoUris: List<String>) {
         updateState { state ->
             val currentPhotos = state.photoUris.toMutableList()
-            currentPhotos.addAll(photoUris)
+            val remainingSlots = 20 - currentPhotos.size
+            if (remainingSlots > 0) {
+                // 只添加不超过剩余配额的照片
+                val photosToAdd = photoUris.take(remainingSlots)
+                currentPhotos.addAll(photosToAdd)
+            }
             state.copy(photoUris = currentPhotos)
         }
     }

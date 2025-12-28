@@ -1,8 +1,10 @@
 package com.lm.journeylens.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.tab.Tab
 import cafe.adriel.voyager.navigator.tab.TabOptions
 import com.lm.journeylens.feature.map.MapScreen
@@ -29,11 +31,20 @@ object MapTab : Tab {
             }
         }
 
-
-
     @Composable
     override fun Content() {
         val screenModel = getScreenModel<MapScreenModel>()
+        val tabNavigator = LocalTabNavigator.current
+        
+        // 当返回 MapTab 时，清空之前的 selection
+        // 这样用户可以看到更新后的地图标记，而不是旧的详情卡片
+        LaunchedEffect(tabNavigator.current) {
+            if (tabNavigator.current == this@MapTab) {
+                screenModel.clearSelection()
+            }
+        }
+        
         MapScreen(screenModel)
     }
 }
+
