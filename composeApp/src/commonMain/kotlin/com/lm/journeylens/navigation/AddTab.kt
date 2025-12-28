@@ -1,15 +1,16 @@
 package com.lm.journeylens.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import cafe.adriel.voyager.koin.getScreenModel
 import cafe.adriel.voyager.navigator.tab.Tab
 import cafe.adriel.voyager.navigator.tab.TabOptions
 import com.lm.journeylens.feature.memory.AddMemoryScreen
+import com.lm.journeylens.feature.memory.AddMemoryScreenModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-
-import cafe.adriel.voyager.koin.getScreenModel
 
 /**
  * 添加 Tab - 导入照片/创建记忆
@@ -31,8 +32,14 @@ object AddTab : Tab {
 
     @Composable
     override fun Content() {
-        // 使用 Voyager 的 getScreenModel 来获取并管理生命周期
-        val screenModel = getScreenModel<com.lm.journeylens.feature.memory.AddMemoryScreenModel>()
+        val screenModel = getScreenModel<AddMemoryScreenModel>()
+        
+        // 每次 Content 被组合时都重新加载草稿
+        // 这确保从地图页跳转过来时能读取最新的草稿
+        LaunchedEffect(Unit) {
+            screenModel.loadDraft()
+        }
+        
         AddMemoryScreen(screenModel)
     }
 }
