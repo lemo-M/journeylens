@@ -1,12 +1,10 @@
 package com.lm.journeylens.feature.map
 
 import cafe.adriel.voyager.core.model.ScreenModel
-import com.lm.journeylens.core.database.entity.Memory
+import cafe.adriel.voyager.core.model.screenModelScope
+import com.lm.journeylens.core.domain.model.Memory
 import com.lm.journeylens.core.repository.MemoryRepository
-import com.lm.journeylens.feature.memory.service.LocationService
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import com.lm.journeylens.core.service.LocationService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,7 +32,6 @@ class MapScreenModel(
     private val memoryRepository: MemoryRepository,
     private val locationService: LocationService
 ) : ScreenModel {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     private val _uiState = MutableStateFlow(MapUiState())
     val uiState: StateFlow<MapUiState> = _uiState.asStateFlow()
@@ -45,7 +42,7 @@ class MapScreenModel(
     }
     
     private fun initLocation() {
-        scope.launch {
+        screenModelScope.launch {
             // 如果还没有保存的相机位置，尝试获取当前位置
             if (_uiState.value.cameraPosition == null) {
                 try {
@@ -66,7 +63,7 @@ class MapScreenModel(
     }
     
     private fun loadMemories() {
-        scope.launch {
+        screenModelScope.launch {
             memoryRepository.getAllMemories().collect { memories ->
                 _uiState.value = _uiState.value.copy(
                     memories = memories,

@@ -2,9 +2,10 @@ package com.lm.journeylens.feature.memory
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import com.lm.journeylens.core.database.entity.Memory
-import com.lm.journeylens.core.repository.MemoryRepository
-import com.lm.journeylens.feature.memory.service.DraftService
+import com.lm.journeylens.feature.memory.domain.usecase.CreateMemoryUseCase
+import com.lm.journeylens.feature.memory.domain.usecase.DiscardDraftUseCase
+import com.lm.journeylens.feature.memory.domain.usecase.GetDraftUseCase
+import com.lm.journeylens.feature.memory.domain.usecase.SaveDraftUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,70 +17,233 @@ import kotlinx.serialization.Serializable
  * 新流程：选位置 → 选照片 → 填写详情
  */
 class AddMemoryScreenModel(
-    private val memoryRepository: MemoryRepository,
-    private val draftService: DraftService
+    private val getDraftUseCase: GetDraftUseCase,
+    private val saveDraftUseCase: SaveDraftUseCase,
+    private val discardDraftUseCase: DiscardDraftUseCase,
+    private val createMemoryUseCase: CreateMemoryUseCase,
+    private val globalCreationState: com.lm.journeylens.feature.memory.domain.state.GlobalCreationState
 ) : ScreenModel {
     
     // UI 状态
     private val _uiState = MutableStateFlow(AddMemoryUiState())
     val uiState: StateFlow<AddMemoryUiState> = _uiState.asStateFlow()
     
-    // loadDraft() 由 AddTab 的 LaunchedEffect 调用，不在 init 中调用
-    
-    fun loadDraft() {
+    init {
+        // 监听全局创建状态（从地图页带入的位置信息）
         screenModelScope.launch {
-            val draft = draftService.loadDraft()
-            if (draft != null) {
-                _uiState.value = draft
-            } else {
-                // 如果没有草稿，初始化默认状态
-                _uiState.value = AddMemoryUiState()
+            globalCreationState.session.collect { session ->
+                if (session != null) {
+                    setLocationFromMapAndPrepare(session.latitude, session.longitude)
+                    globalCreationState.clear()
+                }
             }
         }
     }
     
+    // 草稿中的照片数量（用于显示）
+    private val _draftPhotoCount = MutableStateFlow(0)
+    val draftPhotoCount: StateFlow<Int> = _draftPhotoCount.asStateFlow()
+    
+    // 是否显示草稿恢复对话框
+    private val _showDraftDialog = MutableStateFlow(false)
+    val showDraftDialog: StateFlow<Boolean> = _showDraftDialog.asStateFlow()
+    
+    // 是否显示退出确认对话框（从照片选择页返回时）
+    private val _showExitConfirmDialog = MutableStateFlow(false)
+    val showExitConfirmDialog: StateFlow<Boolean> = _showExitConfirmDialog.asStateFlow()
+    
+    /**
+     * 进入照片选择步骤前检测草稿
+     * 如果有照片草稿，显示对话框让用户选择
+     */
+    suspend fun checkDraftBeforePhotos(): Boolean {
+        val draft = getDraftUseCase()
+        if (draft != null) {
+            _draftPhotoCount.value = draft.photoUris.size
+            _showDraftDialog.value = true
+            return true // 有草稿，需要用户决定
+        }
+        return false // 没有草稿，直接进入
+    }
+    
+    /**
+     * 用户选择恢复草稿（只恢复照片、emoji、备注）
+     */
+    fun restoreDraftPhotos() {
+        screenModelScope.launch {
+            val draft = getDraftUseCase()
+            if (draft != null) {
+                // 只恢复照片、emoji、备注，保持当前位置
+                val currentState = _uiState.value
+                _uiState.value = currentState.copy(
+                    step = ImportStep.PHOTOS,
+                    photoUris = draft.photoUris,
+                    emoji = draft.emoji,
+                    note = draft.note
+                )
+            }
+            _showDraftDialog.value = false
+        }
+    }
+    
+    /**
+     * 用户选择不恢复草稿（清空并开始新选择）
+     */
+    fun discardDraft() {
+        screenModelScope.launch {
+            discardDraftUseCase()
+            _showDraftDialog.value = false
+            // 清空所有草稿内容，重置为初始值
+            _uiState.value = _uiState.value.copy(
+                step = ImportStep.PHOTOS,
+                photoUris = emptyList(),
+                emoji = "📍",
+                note = null
+            )
+        }
+    }
+    
+    /**
+     * 关闭草稿对话框（视作放弃草稿）
+     */
+    fun dismissDraftDialog() {
+        _showDraftDialog.value = false
+    }
+    
+    /**
+     * 从照片选择页请求返回
+     * 如果有照片，显示确认对话框；否则直接返回
+     */
+    fun requestExitFromPhotos() {
+        val currentPhotos = _uiState.value.photoUris
+        if (currentPhotos.isNotEmpty()) {
+            _draftPhotoCount.value = currentPhotos.size
+            _showExitConfirmDialog.value = true
+        } else {
+            // 没有照片，直接返回
+            _uiState.value = _uiState.value.copy(step = ImportStep.LOCATION)
+        }
+    }
+    
+    /**
+     * 用户选择保存草稿后返回
+     */
+    fun confirmExitWithSave() {
+        // 草稿已经在 updateState 中自动保存了，直接返回即可
+        _showExitConfirmDialog.value = false
+        _uiState.value = _uiState.value.copy(step = ImportStep.LOCATION)
+    }
+    
+    /**
+     * 用户选择不保存草稿后返回
+     */
+    fun confirmExitWithoutSave() {
+        screenModelScope.launch {
+            discardDraftUseCase()
+            _showExitConfirmDialog.value = false
+            // 清空照片等内容并返回
+            _uiState.value = _uiState.value.copy(
+                step = ImportStep.LOCATION,
+                photoUris = emptyList(),
+                emoji = "📍",
+                note = null
+            )
+        }
+    }
+    
+    /**
+     * 关闭退出确认对话框
+     */
+    fun dismissExitConfirmDialog() {
+        _showExitConfirmDialog.value = false
+    }
+    
     /**
      * 更新状态并自动保存草稿
+     * 草稿只保存照片、emoji、备注（不保存位置）
      */
     private fun updateState(update: (AddMemoryUiState) -> AddMemoryUiState) {
         val newState = update(_uiState.value)
         _uiState.value = newState
         
-        // 自动保存草稿 (除了成功状态)
-        if (newState.step != ImportStep.SUCCESS) {
+        // 只有有照片时才保存草稿（成功状态除外）
+        if (newState.step != ImportStep.SUCCESS && newState.photoUris.isNotEmpty()) {
             screenModelScope.launch {
-                draftService.saveDraft(newState)
+                // 只保存照片相关内容，不保存位置
+                val draftState = AddMemoryUiState(
+                    step = ImportStep.PHOTOS,
+                    photoUris = newState.photoUris,
+                    emoji = newState.emoji,
+                    note = newState.note
+                )
+                saveDraftUseCase(draftState)
             }
         }
     }
     
     /**
      * 步骤 1: 设置位置（当前定位）
+     * 设置位置后检测是否有草稿
      */
     fun setLocationFromGps(latitude: Double, longitude: Double, locationName: String? = null) {
-        updateState { state ->
-            state.copy(
-                latitude = latitude,
-                longitude = longitude,
-                locationName = locationName,
-                isAutoLocated = true,
-                step = ImportStep.PHOTOS
-            )
+        // 先设置位置（但不进入 PHOTOS 步骤）
+        _uiState.value = _uiState.value.copy(
+            latitude = latitude,
+            longitude = longitude,
+            locationName = locationName,
+            isAutoLocated = true
+        )
+        // 检测草稿并决定下一步
+        screenModelScope.launch {
+            val hasDraft = checkDraftBeforePhotos()
+            if (!hasDraft) {
+                // 没有草稿，直接进入 PHOTOS 步骤
+                _uiState.value = _uiState.value.copy(step = ImportStep.PHOTOS)
+            }
+            // 如果有草稿，对话框会显示，用户选择后才更新步骤
         }
     }
     
     /**
      * 步骤 1: 设置位置（地图选点）
+     * 设置位置后检测是否有草稿
      */
     fun setLocationFromMap(latitude: Double, longitude: Double) {
-        updateState { state ->
-            state.copy(
-                latitude = latitude,
-                longitude = longitude,
-                isAutoLocated = false,
-                step = ImportStep.PHOTOS
-            )
+        // 先设置位置（但不进入 PHOTOS 步骤）
+        _uiState.value = _uiState.value.copy(
+            latitude = latitude,
+            longitude = longitude,
+            isAutoLocated = false
+        )
+        // 检测草稿并决定下一步
+        screenModelScope.launch {
+            val hasDraft = checkDraftBeforePhotos()
+            if (!hasDraft) {
+                // 没有草稿，直接进入 PHOTOS 步骤
+                _uiState.value = _uiState.value.copy(step = ImportStep.PHOTOS)
+            }
+            // 如果有草稿，对话框会显示，用户选择后才更新步骤
         }
+    }
+    
+    /**
+     * 从地图页添加记忆时使用的挂起方法
+     * 设置位置并等待草稿检测完成，返回后调用方可以安全导航
+     */
+    private suspend fun setLocationFromMapAndPrepare(latitude: Double, longitude: Double) {
+        // 先设置位置
+        _uiState.value = _uiState.value.copy(
+            latitude = latitude,
+            longitude = longitude,
+            isAutoLocated = false
+        )
+        // 检测草稿并设置下一步（同步等待）
+        val hasDraft = checkDraftBeforePhotos()
+        if (!hasDraft) {
+            // 没有草稿，直接进入 PHOTOS 步骤
+            _uiState.value = _uiState.value.copy(step = ImportStep.PHOTOS)
+        }
+        // 如果有草稿，对话框会显示，用户选择后才更新步骤
     }
     
     /**
@@ -152,21 +316,18 @@ class AddMemoryScreenModel(
         screenModelScope.launch {
             updateState { it.copy(isLoading = true) }
             
-            val memory = Memory(
+            createMemoryUseCase(
                 latitude = state.latitude,
                 longitude = state.longitude,
                 locationName = state.locationName,
-                timestamp = System.currentTimeMillis(),
                 photoUris = state.photoUris,
                 emoji = state.emoji,
-                note = state.note?.takeIf { it.isNotBlank() },
+                note = state.note,
                 isAutoLocated = state.isAutoLocated
             )
             
-            memoryRepository.insert(memory)
-            
             // 成功后清除草稿
-            draftService.clearDraft()
+            discardDraftUseCase()
             
             updateState { AddMemoryUiState(step = ImportStep.SUCCESS) }
         }
@@ -192,7 +353,7 @@ class AddMemoryScreenModel(
      */
     fun reset() {
         screenModelScope.launch {
-            draftService.clearDraft()
+            discardDraftUseCase()
         }
         updateState { AddMemoryUiState() }
     }

@@ -36,11 +36,21 @@ val coreModule = module {
  * 功能模块 - 服务和 ScreenModel
  */
 val featureModule = module {
+    // Global State
+    single { com.lm.journeylens.feature.memory.domain.state.GlobalCreationState() }
+
+    // UseCases
+    factory { com.lm.journeylens.feature.memory.domain.usecase.GetDraftUseCase(get()) }
+    factory { com.lm.journeylens.feature.memory.domain.usecase.SaveDraftUseCase(get()) }
+    factory { com.lm.journeylens.feature.memory.domain.usecase.DiscardDraftUseCase(get()) }
+    factory { com.lm.journeylens.feature.memory.domain.usecase.CreateMemoryUseCase(get()) }
+
     // Map ScreenModel
     factory { MapScreenModel(get(), get()) }
     
-    // AddMemory ScreenModel (Repository + DraftService)
-    factory { AddMemoryScreenModel(get(), get()) }
+    // AddMemory ScreenModel (UseCases + GlobalState)
+    // 恢复为 factory，不再需要单例共享，通过 GlobalCreationState 共享数据
+    factory { AddMemoryScreenModel(get(), get(), get(), get(), get()) }
     
     // Timeline ScreenModel
     factory { TimelineScreenModel(get()) }

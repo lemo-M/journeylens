@@ -11,12 +11,12 @@ import kotlinx.coroutines.withContext
 /**
  * iOS 草稿服务实现
  */
-actual class DraftService {
+class IosDraftService : DraftService {
     private val fileManager = NSFileManager.defaultManager
     private val documentsUrl = fileManager.URLsForDirectory(NSDocumentDirectory, NSUserDomainMask).first() as NSURL
     private val fileUrl = documentsUrl.URLByAppendingPathComponent("add_memory_draft.json")
 
-    actual suspend fun saveDraft(state: AddMemoryUiState) {
+    override suspend fun saveDraft(state: AddMemoryUiState) {
         withContext(Dispatchers.IO) {
             try {
                 val json = Json.encodeToString(state)
@@ -28,7 +28,7 @@ actual class DraftService {
         }
     }
 
-    actual suspend fun loadDraft(): AddMemoryUiState? {
+    override suspend fun loadDraft(): AddMemoryUiState? {
         return withContext(Dispatchers.IO) {
             try {
                 if (fileManager.fileExistsAtPath(fileUrl!!.path!!)) {
@@ -44,7 +44,7 @@ actual class DraftService {
         }
     }
 
-    actual suspend fun clearDraft() {
+    override suspend fun clearDraft() {
         withContext(Dispatchers.IO) {
              try {
                 if (fileManager.fileExistsAtPath(fileUrl!!.path!!)) {

@@ -5,7 +5,7 @@ import com.lm.journeylens.feature.memory.AddMemoryUiState
 /**
  * 草稿服务 - 用于保存和恢复编辑中的状态
  */
-expect class DraftService {
+interface DraftService {
     /**
      * 保存草稿
      */

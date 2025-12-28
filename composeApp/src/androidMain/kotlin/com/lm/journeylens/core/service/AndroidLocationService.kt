@@ -1,4 +1,4 @@
-package com.lm.journeylens.feature.memory.service
+package com.lm.journeylens.core.service
 
 import android.content.Context
 import com.amap.api.location.AMapLocation
@@ -11,12 +11,12 @@ import kotlin.coroutines.resume
 /**
  * 高德定位服务 - Android 实现
  */
-actual class LocationService(private val context: Context) {
+class AndroidLocationService(private val context: Context) : LocationService {
     
     /**
      * 获取当前位置（一次性）
      */
-    actual suspend fun getCurrentLocation(): LocationResult? {
+    override suspend fun getCurrentLocation(): LocationResult? {
         return suspendCancellableCoroutine { continuation ->
             var locationClient: AMapLocationClient? = null
             
@@ -65,8 +65,8 @@ actual class LocationService(private val context: Context) {
                 
                 // 取消时清理
                 continuation.invokeOnCancellation {
-                    locationClient?.stopLocation()
-                    locationClient?.onDestroy()
+                    locationClient.stopLocation()
+                    locationClient.onDestroy()
                 }
                 
             } catch (e: Exception) {

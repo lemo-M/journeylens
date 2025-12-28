@@ -11,7 +11,7 @@ import java.io.File
 /**
  * Android 草稿服务实现
  */
-actual class DraftService(private val context: Context) {
+class AndroidDraftService(private val context: Context) : DraftService {
     private val draftFile by lazy { File(context.filesDir, "add_memory_draft.json") }
     
     private val json = Json { 
@@ -19,7 +19,7 @@ actual class DraftService(private val context: Context) {
         encodeDefaults = true
     }
     
-    actual suspend fun saveDraft(state: AddMemoryUiState) {
+    override suspend fun saveDraft(state: AddMemoryUiState) {
         withContext(Dispatchers.IO) {
             try {
                 val jsonString = json.encodeToString(serializer<AddMemoryUiState>(), state)
@@ -30,7 +30,7 @@ actual class DraftService(private val context: Context) {
         }
     }
     
-    actual suspend fun loadDraft(): AddMemoryUiState? {
+    override suspend fun loadDraft(): AddMemoryUiState? {
         return withContext(Dispatchers.IO) {
             if (draftFile.exists()) {
                 try {
@@ -45,7 +45,7 @@ actual class DraftService(private val context: Context) {
         }
     }
 
-    actual suspend fun clearDraft() {
+    override suspend fun clearDraft() {
          withContext(Dispatchers.IO) {
              if (draftFile.exists()) {
                  draftFile.delete()
@@ -53,4 +53,3 @@ actual class DraftService(private val context: Context) {
          }
     }
 }
-

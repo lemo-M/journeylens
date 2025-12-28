@@ -2,7 +2,7 @@ package com.lm.journeylens.feature.map.component
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.lm.journeylens.core.database.entity.Memory
+import com.lm.journeylens.core.domain.model.Memory
 
 /**
  * 地图组件 - expect/actual 模式

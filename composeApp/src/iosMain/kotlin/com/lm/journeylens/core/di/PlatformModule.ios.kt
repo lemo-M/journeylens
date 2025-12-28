@@ -15,5 +15,8 @@ actual val platformModule = module {
     factory { LivePhotoService() }
     
     // 草稿服务 - iOS 实现
-    factory { com.lm.journeylens.feature.memory.service.DraftService() }
+    factory<com.lm.journeylens.feature.memory.service.DraftService> { com.lm.journeylens.feature.memory.service.IosDraftService() }
+
+    // 定位服务 - iOS 实现
+    factory<com.lm.journeylens.core.service.LocationService> { com.lm.journeylens.core.service.IosLocationService() }
 }

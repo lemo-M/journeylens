@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
-import com.lm.journeylens.core.database.entity.Memory
+import com.lm.journeylens.core.domain.model.Memory
 import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.core.theme.JourneyLensColors
 import com.lm.journeylens.feature.memory.MemoryDetailScreen
@@ -32,14 +32,17 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
+import com.lm.journeylens.core.util.formatCoordinates
 
 /**
  * 时间轴页面 - 螺旋时间轴
  */
 @Composable
-fun TimelineScreen() {
-    val screenModel: TimelineScreenModel = koinInject()
-    val repository: MemoryRepository = koinInject()
+fun TimelineScreen(
+    screenModel: TimelineScreenModel,
+    // TODO: Repository should eventually be moved to UseCases in Phase 2
+    repository: MemoryRepository = koinInject() 
+) {
     val uiState by screenModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     
@@ -309,7 +312,7 @@ private fun MemoryDetailCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "📍 %.4f, %.4f".format(memory.latitude, memory.longitude),
+                    text = formatCoordinates(memory.latitude, memory.longitude),
                     style = MaterialTheme.typography.bodySmall,
                     color = JourneyLensColors.TextTertiary
                 )

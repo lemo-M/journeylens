@@ -1,4 +1,4 @@
-package com.lm.journeylens.feature.memory.service
+package com.lm.journeylens.core.service
 
 /**
  * 定位结果
@@ -10,9 +10,10 @@ data class LocationResult(
 )
 
 /**
- * 定位服务 - expect 声明
+ * 定位服务接口
+ * 抽象具体平台的定位实现
  */
-expect class LocationService {
+interface LocationService {
     /**
      * 获取当前位置（一次性）
      */

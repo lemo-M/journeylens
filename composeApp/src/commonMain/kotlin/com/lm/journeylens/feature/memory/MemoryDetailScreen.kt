@@ -20,7 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.lm.journeylens.core.database.entity.Memory
+import com.lm.journeylens.core.domain.model.Memory
 import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.core.theme.JourneyLensColors
 import com.lm.journeylens.feature.memory.component.EmojiPickerDialog
@@ -34,6 +34,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
+import com.lm.journeylens.core.util.formatCoordinates
 
 /**
  * 记忆详情/编辑页面
@@ -171,7 +172,7 @@ fun MemoryDetailScreen(
                     color = JourneyLensColors.TextPrimary
                 )
                 Text(
-                    text = "📍 %.4f, %.4f".format(memory.latitude, memory.longitude),
+                    text = formatCoordinates(memory.latitude, memory.longitude),
                     style = MaterialTheme.typography.bodySmall,
                     color = JourneyLensColors.TextTertiary
                 )

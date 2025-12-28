@@ -7,15 +7,11 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,30 +19,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil3.compose.AsyncImage
-import com.lm.journeylens.core.database.entity.Memory
+import com.lm.journeylens.core.domain.model.Memory
 import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.core.theme.JourneyLensColors
+import com.lm.journeylens.feature.map.component.AddMemoryCard
 import com.lm.journeylens.feature.map.component.MapCameraControl
+import com.lm.journeylens.feature.map.component.MapMemoryDetailCard
 import com.lm.journeylens.feature.map.component.MapView
+
 import com.lm.journeylens.feature.memory.MemoryDetailScreen
-import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import org.koin.compose.koinInject
-
 import com.lm.journeylens.feature.memory.service.DraftService
-import com.lm.journeylens.feature.memory.AddMemoryUiState
-import com.lm.journeylens.feature.memory.ImportStep
-import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import com.lm.journeylens.navigation.AddTab
-
 import cafe.adriel.voyager.koin.getScreenModel
+import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 
 /**
  * 地图页面 - 战争迷雾探索地图
@@ -245,21 +235,14 @@ fun MapScreen(
                         } else {
                             // 最后一页："添加新记忆"卡片
                             val currentLocMemory = selectedMemories.firstOrNull()
+                            val globalCreationState: com.lm.journeylens.feature.memory.domain.state.GlobalCreationState = koinInject()
                             AddMemoryCard(
                                 locationName = currentLocMemory?.locationName ?: "此处",
                                 onAdd = {
                                     currentLocMemory?.let { m ->
-                                        // 1. 保存包含位置信息的 Draft
-                                        val draft = AddMemoryUiState(
-                                            step = ImportStep.PHOTOS, // 直接跳到选照片
-                                            latitude = m.latitude,
-                                            longitude = m.longitude,
-                                            locationName = m.locationName,
-                                            // address = m.address // Memory 实体没有 address 字段，忽略
-                                        )
                                         scope.launch {
-                                            draftService.saveDraft(draft)
-                                            // 2. 跳转到 AddTab
+                                            // 设置位置并切换 Tab
+                                            globalCreationState.startCreation(m.latitude, m.longitude)
                                             tabNavigator.current = AddTab
                                         }
                                     }
@@ -306,260 +289,6 @@ fun MapScreen(
                     editingMemory = null
                 }
             )
-        }
-    }
-}
-
-/**
- * "在此处添加记忆" 卡片
- */
-@Composable
-private fun AddMemoryCard(
-    locationName: String,
-    onAdd: () -> Unit,
-    onDismiss: () -> Unit
-) {
-     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = JourneyLensColors.SurfaceLight.copy(alpha = 0.98f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    // 与 MapMemoryDetailCard 保持一致的高度逻辑
-                    .heightIn(min = 320.dp, max = 400.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                // 图标
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(JourneyLensColors.AppleBlue.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = null,
-                        tint = JourneyLensColors.AppleBlue,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(
-                    text = "在此处添加记忆",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = JourneyLensColors.TextPrimary
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "复用 $locationName 的位置信息",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = JourneyLensColors.TextSecondary
-                )
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                Button(
-                    onClick = onAdd,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = JourneyLensColors.AppleBlue
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("去添加")
-                }
-            }
-            
-            // 关闭按钮
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "关闭",
-                    tint = JourneyLensColors.TextSecondary
-                )
-            }
-        }
-    }
-}
-
-/**
- * 地图记忆详情卡片
- */
-@Composable
-private fun MapMemoryDetailCard(
-    memory: Memory,
-    onDismiss: () -> Unit,
-    onEdit: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            // 使用更不透明的背景
-            containerColor = JourneyLensColors.SurfaceLight.copy(alpha = 0.98f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                // 设置最小高度，防止滑动时因内容高度不一导致跳动
-                .heightIn(min = 320.dp, max = 400.dp) // 增加最大高度限制
-        ) {
-            // 顶部栏
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Emoji + 时间
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = memory.emoji,
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    val dateTime = remember(memory.timestamp) {
-                        try {
-                            val instant = Instant.fromEpochMilliseconds(memory.timestamp)
-                            val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-                            "${localDateTime.year}年${localDateTime.monthNumber}月${localDateTime.dayOfMonth}日"
-                        } catch (e: Exception) {
-                            "未知时间"
-                        }
-                    }
-                    Text(
-                        text = dateTime,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = JourneyLensColors.TextPrimary
-                    )
-                }
-                
-                Row {
-                    // 编辑按钮
-                    IconButton(onClick = onEdit) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "编辑",
-                            tint = JourneyLensColors.AppleBlue
-                        )
-                    }
-                    // 关闭按钮
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "关闭",
-                            tint = JourneyLensColors.TextSecondary
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // 照片（使用 Coil）
-            if (memory.photoUris.isNotEmpty()) {
-                androidx.compose.foundation.lazy.LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(memory.photoUris.size) { index ->
-                        AsyncImage(
-                            model = memory.photoUris[index],
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(120.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(JourneyLensColors.SurfaceLight),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("📷", style = MaterialTheme.typography.displayMedium)
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // 备注区域 (使用 Weight 让其占据固定空间，或者用 Spacer 撑满)
-            // 支持垂直滑动，移除行数限制
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
-            ) {
-                 memory.note?.let { note ->
-                    if (note.isNotBlank()) {
-                         Text(
-                            text = note,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = JourneyLensColors.TextSecondary,
-                            // maxLines = 3, // 移除行数限制
-                            // overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                    } else {
-                         // 即使为空也占位，或者显示默认文案
-                         Text(
-                            text = "没有备注",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = JourneyLensColors.TextTertiary.copy(alpha = 0.5f)
-                         )
-                    }
-                } ?: run {
-                     Text(
-                        text = "没有备注",
-                        style = MaterialTheme.typography.bodyMedium,
-                         color = JourneyLensColors.TextTertiary.copy(alpha = 0.5f)
-                    )
-                }
-            }
-           
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // 位置 + 照片数量
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "📍 %.4f, %.4f".format(memory.latitude, memory.longitude),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = JourneyLensColors.TextTertiary
-                )
-                Text(
-                    text = "${memory.photoCount} 张照片",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = JourneyLensColors.TextTertiary
-                )
-            }
         }
     }
 }

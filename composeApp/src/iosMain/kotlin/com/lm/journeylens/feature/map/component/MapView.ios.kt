@@ -1,6 +1,5 @@
 package com.lm.journeylens.feature.map.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -8,8 +7,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.lm.journeylens.core.database.entity.Memory
+import com.lm.journeylens.core.domain.model.Memory
 import com.lm.journeylens.core.theme.JourneyLensColors
+
+import com.lm.journeylens.feature.map.MapCameraPosition
 
 /**
  * iOS 地图实现 - 占位符
@@ -20,7 +21,9 @@ actual fun MapView(
     memories: List<Memory>,
     onMemoryClick: (List<Memory>) -> Unit,
     modifier: Modifier,
-    cameraControl: MapCameraControl?
+    cameraControl: MapCameraControl?,
+    cameraPosition: MapCameraPosition?,
+    onCameraPositionChange: ((MapCameraPosition) -> Unit)?
 ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -36,5 +39,5 @@ actual fun MapView(
                 color = JourneyLensColors.TextSecondary
             )
         }
-    }
+
 }

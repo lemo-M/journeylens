@@ -1,8 +1,11 @@
 package com.lm.journeylens.core.repository
 
 import com.lm.journeylens.core.database.dao.MemoryDao
-import com.lm.journeylens.core.database.entity.Memory
+import com.lm.journeylens.core.domain.model.Memory
+import com.lm.journeylens.core.data.mapper.toDomain
+import com.lm.journeylens.core.data.mapper.toEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /**
  * Memory 仓库接口
@@ -27,24 +30,27 @@ class MemoryRepositoryImpl(
     private val memoryDao: MemoryDao
 ) : MemoryRepository {
     
-    override fun getAllMemories(): Flow<List<Memory>> = memoryDao.getAllMemories()
+    override fun getAllMemories(): Flow<List<Memory>> = 
+        memoryDao.getAllMemories().map { list -> list.toDomain() }
     
     override fun getMemoriesByTimeRange(startTime: Long, endTime: Long): Flow<List<Memory>> =
-        memoryDao.getMemoriesByTimeRange(startTime, endTime)
+        memoryDao.getMemoriesByTimeRange(startTime, endTime).map { list -> list.toDomain() }
     
     override fun getDistinctYears(): Flow<List<String>> = memoryDao.getDistinctYears()
     
-    override suspend fun getMemoryById(id: Long): Memory? = memoryDao.getMemoryById(id)
+    override suspend fun getMemoryById(id: Long): Memory? = 
+        memoryDao.getMemoryById(id)?.toDomain()
     
     override suspend fun getMemoryCount(): Int = memoryDao.getMemoryCount()
     
-    override suspend fun insert(memory: Memory): Long = memoryDao.insert(memory)
+    override suspend fun insert(memory: Memory): Long = memoryDao.insert(memory.toEntity())
     
-    override suspend fun insertAll(memories: List<Memory>): List<Long> = memoryDao.insertAll(memories)
+    override suspend fun insertAll(memories: List<Memory>): List<Long> = 
+        memoryDao.insertAll(memories.toEntity())
     
-    override suspend fun update(memory: Memory) = memoryDao.update(memory)
+    override suspend fun update(memory: Memory) = memoryDao.update(memory.toEntity())
     
-    override suspend fun delete(memory: Memory) = memoryDao.delete(memory)
+    override suspend fun delete(memory: Memory) = memoryDao.delete(memory.toEntity())
     
     override suspend fun deleteById(id: Long) = memoryDao.deleteById(id)
 }

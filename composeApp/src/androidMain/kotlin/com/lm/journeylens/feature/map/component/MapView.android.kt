@@ -1,6 +1,5 @@
 package com.lm.journeylens.feature.map.component
 
-import android.util.Log
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -12,7 +11,7 @@ import com.amap.api.maps.model.CameraPosition
 import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.model.MarkerOptions
 import com.amap.api.maps.model.MyLocationStyle
-import com.lm.journeylens.core.database.entity.Memory
+import com.lm.journeylens.core.domain.model.Memory
 import com.lm.journeylens.feature.map.MapCameraPosition
 import kotlinx.coroutines.flow.collectLatest
 

@@ -35,7 +35,7 @@ class PhotoUrisConverter {
  */
 @Entity(tableName = "memories")
 @TypeConverters(PhotoUrisConverter::class)
-data class Memory(
+data class MemoryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     
@@ -59,16 +59,4 @@ data class Memory(
     
     // 元数据
     val isAutoLocated: Boolean = true,
-) {
-    /**
-     * 获取主照片 URI（第一张）
-     */
-    val primaryPhotoUri: String?
-        get() = photoUris.firstOrNull()
-    
-    /**
-     * 照片数量
-     */
-    val photoCount: Int
-        get() = photoUris.size
-}
+)
