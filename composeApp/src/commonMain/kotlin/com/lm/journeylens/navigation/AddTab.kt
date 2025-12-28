@@ -29,6 +29,7 @@ object AddTab : Tab {
 
     @Composable
     override fun Content() {
-        AddMemoryScreen()
+        val screenModel = cafe.adriel.voyager.koin.getScreenModel<com.lm.journeylens.feature.memory.AddMemoryScreenModel>()
+        AddMemoryScreen(screenModel)
     }
 }

@@ -33,9 +33,12 @@ import cafe.adriel.voyager.koin.getScreenModel
  * 添加记忆页面
  * 新流程：选位置 → 选照片 → 填写详情
  */
+/**
+ * 添加记忆页面
+ * 新流程：选位置 → 选照片 → 填写详情
+ */
 @Composable
-fun AddMemoryScreen() {
-    val screenModel = getScreenModel<AddMemoryScreenModel>()
+fun AddMemoryScreen(screenModel: AddMemoryScreenModel) {
     val uiState by screenModel.uiState.collectAsState()
     
     Box(
