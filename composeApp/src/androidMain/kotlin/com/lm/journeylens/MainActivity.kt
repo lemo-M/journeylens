@@ -39,10 +39,12 @@ class MainActivity : ComponentActivity() {
         // 初始化数据库上下文
         initDatabase(this)
 
-        // 初始化 Koin
-        startKoin {
-            androidContext(this@MainActivity)
-            modules(appModules)
+        // 初始化 Koin（防止重复初始化）
+        if (org.koin.mp.KoinPlatform.getOrNull() == null) {
+            startKoin {
+                androidContext(this@MainActivity)
+                modules(appModules)
+            }
         }
         
         // 请求权限
