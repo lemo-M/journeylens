@@ -13,6 +13,13 @@
     
     <!-- 网络权限 (地图瓦片) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- 高德地图所需权限 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
@@ -21,12 +28,17 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        
+        <!-- 高德地图 API Key -->
+        <meta-data
+            android:name="com.amap.api.v2.apikey"
+            android:value="907902f9d823fa41033def85bbeb9abf" />
+        
         <activity
             android:exported="true"
             android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

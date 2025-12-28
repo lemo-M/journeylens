@@ -5,15 +5,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import com.amap.api.maps.AMap
+import com.amap.api.maps.CameraUpdateFactory
+import com.amap.api.maps.MapView
+import com.amap.api.maps.model.CameraPosition
+import com.amap.api.maps.model.LatLng
+import com.amap.api.maps.model.MarkerOptions
 import com.lm.journeylens.core.database.entity.Memory
-import org.maplibre.android.MapLibre
-import org.maplibre.android.camera.CameraPosition
-import org.maplibre.android.geometry.LatLng
-import org.maplibre.android.maps.MapView
-import org.maplibre.android.maps.Style
+
+private const val TAG = "AMapView"
 
 /**
- * Android MapLibre 地图实现
+ * Android 高德地图实现
  */
 @Composable
 actual fun MapView(
@@ -23,65 +26,72 @@ actual fun MapView(
 ) {
     val context = LocalContext.current
     
-    // 同步初始化 MapLibre（在创建 MapView 之前）
-    remember {
-        MapLibre.getInstance(context)
-        true
+    // 记住 MapView 实例
+    val mapView = remember {
+        MapView(context).apply {
+            onCreate(null)
+        }
     }
     
-    // 使用 MapLibre 内置的 Demo 样式（更稳定）
-    // 或者使用 OSM Raster 样式
-    val styleJson = """
-    {
-        "version": 8,
-        "name": "JourneyLens Light",
-        "sources": {
-            "osm": {
-                "type": "raster",
-                "tiles": [
-                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                ],
-                "tileSize": 256,
-                "attribution": "© OpenStreetMap contributors"
-            }
-        },
-        "layers": [
-            {
-                "id": "osm-tiles",
-                "type": "raster",
-                "source": "osm",
-                "minzoom": 0,
-                "maxzoom": 19
-            }
-        ]
+    // 管理生命周期
+    DisposableEffect(mapView) {
+        mapView.onResume()
+        onDispose {
+            mapView.onPause()
+            mapView.onDestroy()
+        }
     }
-    """.trimIndent()
     
     AndroidView(
-        factory = { ctx ->
-            MapView(ctx).apply {
-                getMapAsync { mapLibreMap ->
-                    // 使用内联 JSON 样式（避免网络请求）
-                    mapLibreMap.setStyle(Style.Builder().fromJson(styleJson)) { style ->
-                        Log.d("MapView", "Style loaded successfully")
-                        // 设置初始相机位置（中国中心）
-                        mapLibreMap.cameraPosition = CameraPosition.Builder()
-                            .target(LatLng(35.0, 105.0))
-                            .zoom(4.0)
-                            .build()
-                    }
+        factory = { mapView },
+        update = { view ->
+            view.map?.let { aMap ->
+                // 设置地图类型为标准地图
+                aMap.mapType = AMap.MAP_TYPE_NORMAL
+                
+                // 设置 UI 控件
+                aMap.uiSettings.apply {
+                    isZoomControlsEnabled = false  // 隐藏缩放按钮
+                    isCompassEnabled = false       // 隐藏指南针
+                    isScaleControlsEnabled = true  // 显示比例尺
                 }
-            }
-        },
-        update = { mapView ->
-            mapView.getMapAsync { mapLibreMap ->
-                // 如果有记忆点，移动相机到第一个
-                memories.firstOrNull()?.let { memory ->
-                    mapLibreMap.cameraPosition = CameraPosition.Builder()
-                        .target(LatLng(memory.latitude, memory.longitude))
-                        .zoom(12.0)
-                        .build()
+                
+                // 清除旧标记
+                aMap.clear()
+                
+                // 添加记忆点标记
+                memories.forEach { memory ->
+                    val position = LatLng(memory.latitude, memory.longitude)
+                    val marker = aMap.addMarker(
+                        MarkerOptions()
+                            .position(position)
+                            .title(memory.title ?: "记忆点")
+                            .snippet(memory.note ?: "")
+                    )
+                    marker?.`object` = memory
                 }
+                
+                // 设置标记点击事件
+                aMap.setOnMarkerClickListener { marker ->
+                    val memory = marker.`object` as? Memory
+                    memory?.let { onMemoryClick(it) }
+                    true
+                }
+                
+                // 移动相机到第一个记忆点或默认位置
+                val targetPosition = memories.firstOrNull()?.let {
+                    LatLng(it.latitude, it.longitude)
+                } ?: LatLng(35.0, 105.0)  // 默认中国中心
+                
+                val zoom = if (memories.isNotEmpty()) 12f else 4f
+                
+                aMap.moveCamera(
+                    CameraUpdateFactory.newCameraPosition(
+                        CameraPosition(targetPosition, zoom, 0f, 0f)
+                    )
+                )
+                
+                Log.d(TAG, "Map updated with ${memories.size} memories")
             }
         },
         modifier = modifier

@@ -33,7 +33,8 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.android)
             implementation(libs.androidx.exifinterface)
-            implementation(libs.maplibre.android)
+            // 高德地图 SDK
+            implementation("com.amap.api:3dmap:latest.integration")
         }
         commonMain.dependencies {
             // --- Room 依赖 ---
