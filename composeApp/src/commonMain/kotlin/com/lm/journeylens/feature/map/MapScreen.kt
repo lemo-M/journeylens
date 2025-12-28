@@ -161,21 +161,28 @@ private fun MapMemoryDetailCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 时间
-                val dateTime = remember(memory.timestamp) {
-                    try {
-                        val instant = Instant.fromEpochMilliseconds(memory.timestamp)
-                        val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-                        "${localDateTime.year}年${localDateTime.monthNumber}月${localDateTime.dayOfMonth}日"
-                    } catch (e: Exception) {
-                        "未知时间"
+                // Emoji + 时间
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = memory.emoji,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    val dateTime = remember(memory.timestamp) {
+                        try {
+                            val instant = Instant.fromEpochMilliseconds(memory.timestamp)
+                            val localDateTime = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+                            "${localDateTime.year}年${localDateTime.monthNumber}月${localDateTime.dayOfMonth}日"
+                        } catch (e: Exception) {
+                            "未知时间"
+                        }
                     }
+                    Text(
+                        text = dateTime,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = JourneyLensColors.TextPrimary
+                    )
                 }
-                Text(
-                    text = dateTime,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = JourneyLensColors.TextPrimary
-                )
                 
                 // 关闭按钮
                 IconButton(onClick = onDismiss) {
@@ -189,26 +196,66 @@ private fun MapMemoryDetailCard(
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // 照片占位
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(JourneyLensColors.SurfaceLight),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("📷", style = MaterialTheme.typography.displayMedium)
+            // 照片（使用 Coil）
+            if (memory.photoUris.isNotEmpty()) {
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(memory.photoUris.size) { index ->
+                        coil3.compose.AsyncImage(
+                            model = memory.photoUris[index],
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(120.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(JourneyLensColors.SurfaceLight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("📷", style = MaterialTheme.typography.displayMedium)
+                }
             }
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // 位置
-            Text(
-                text = "📍 %.4f, %.4f".format(memory.latitude, memory.longitude),
-                style = MaterialTheme.typography.bodySmall,
-                color = JourneyLensColors.TextTertiary
-            )
+            // 备注
+            memory.note?.let { note ->
+                if (note.isNotBlank()) {
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = JourneyLensColors.TextSecondary,
+                        maxLines = 3
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+            
+            // 位置 + 照片数量
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "📍 %.4f, %.4f".format(memory.latitude, memory.longitude),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = JourneyLensColors.TextTertiary
+                )
+                Text(
+                    text = "${memory.photoCount} 张照片",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = JourneyLensColors.TextTertiary
+                )
+            }
         }
     }
 }

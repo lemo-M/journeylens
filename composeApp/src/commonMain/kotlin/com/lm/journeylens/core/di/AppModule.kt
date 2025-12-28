@@ -39,8 +39,8 @@ val featureModule = module {
     // Map ScreenModel
     factory { MapScreenModel(get()) }
     
-    // AddMemory ScreenModel (需要 LivePhotoService)
-    factory { AddMemoryScreenModel(get(), get(), get()) }
+    // AddMemory ScreenModel (只需要 Repository)
+    factory { AddMemoryScreenModel(get()) }
     
     // Timeline ScreenModel
     factory { TimelineScreenModel(get()) }

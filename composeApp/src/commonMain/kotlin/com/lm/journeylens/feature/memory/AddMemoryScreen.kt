@@ -1,30 +1,36 @@
 package com.lm.journeylens.feature.memory
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.lm.journeylens.core.theme.JourneyLensColors
-import com.lm.journeylens.feature.memory.model.PendingImport
+import com.lm.journeylens.feature.memory.component.EmojiPickerDialog
+import com.lm.journeylens.feature.memory.component.LocationPickerDialog
+import com.lm.journeylens.feature.memory.model.PRESET_EMOJIS
 import com.lm.journeylens.feature.memory.service.rememberPhotoPicker
 import org.koin.compose.koinInject
 
 /**
  * 添加记忆页面
+ * 新流程：选位置 → 选照片 → 填写详情
  */
 @Composable
 fun AddMemoryScreen() {
@@ -37,22 +43,31 @@ fun AddMemoryScreen() {
             .background(JourneyLensColors.Background)
     ) {
         when (uiState.step) {
-            ImportStep.SELECT -> SelectPhotosContent(
-                onPhotosSelected = { uris -> screenModel.processSelectedPhotos(uris) }
-            )
-            ImportStep.REVIEW -> ReviewContent(
-                pendingImports = uiState.pendingImports,
-                isLoading = uiState.isLoading,
-                onLocationUpdate = { index, lat, lng -> 
-                    screenModel.updatePendingLocation(index, lat, lng) 
+            ImportStep.LOCATION -> LocationStep(
+                onUseCurrentLocation = { lat, lng, name ->
+                    screenModel.setLocationFromGps(lat, lng, name)
                 },
-                onEmojiUpdate = { index, emoji ->
-                    screenModel.updatePendingEmoji(index, emoji)
-                },
-                onConfirm = { screenModel.confirmImport() }
+                onSelectFromMap = { lat, lng ->
+                    screenModel.setLocationFromMap(lat, lng)
+                }
             )
-            ImportStep.SUCCESS -> SuccessContent(
-                count = uiState.importedCount,
+            ImportStep.PHOTOS -> PhotosStep(
+                photoUris = uiState.photoUris,
+                onAddPhotos = { screenModel.addPhotos(it) },
+                onRemovePhoto = { screenModel.removePhoto(it) },
+                onConfirm = { screenModel.confirmPhotos() },
+                onBack = { screenModel.goBack() }
+            )
+            ImportStep.DETAILS -> DetailsStep(
+                photoUris = uiState.photoUris,
+                emoji = uiState.emoji,
+                note = uiState.note,
+                onEmojiChange = { screenModel.updateEmoji(it) },
+                onNoteChange = { screenModel.updateNote(it) },
+                onSave = { screenModel.saveMemory() },
+                onBack = { screenModel.goBack() }
+            )
+            ImportStep.SUCCESS -> SuccessStep(
                 onDone = { screenModel.reset() }
             )
         }
@@ -72,24 +87,35 @@ fun AddMemoryScreen() {
 }
 
 /**
- * 选择照片内容
+ * 步骤 1: 选择位置
  */
 @Composable
-private fun SelectPhotosContent(
-    onPhotosSelected: (List<String>) -> Unit
+private fun LocationStep(
+    onUseCurrentLocation: (Double, Double, String?) -> Unit,
+    onSelectFromMap: (Double, Double) -> Unit
 ) {
-    // 使用 Photo Picker
-    val launchPicker = rememberPhotoPicker(onPhotosSelected)
+    var showMapPicker by remember { mutableStateOf(false) }
+    var isGettingLocation by remember { mutableStateOf(false) }
+    
+    if (showMapPicker) {
+        LocationPickerDialog(
+            onDismiss = { showMapPicker = false },
+            onLocationSelected = { lat, lng ->
+                onSelectFromMap(lat, lng)
+                showMapPicker = false
+            }
+        )
+    }
     
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.Add,
+            Icons.Default.LocationOn,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
             tint = JourneyLensColors.AppleBlue
@@ -98,253 +124,382 @@ private fun SelectPhotosContent(
         Spacer(modifier = Modifier.height(16.dp))
         
         Text(
-            text = "添加新记忆",
-            style = MaterialTheme.typography.headlineLarge,
+            text = "选择位置",
+            style = MaterialTheme.typography.headlineMedium,
             color = JourneyLensColors.TextPrimary
         )
         
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "选择照片，我们会自动读取位置和时间",
-            style = MaterialTheme.typography.bodyMedium,
-            color = JourneyLensColors.TextSecondary,
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Button(
-            onClick = { launchPicker() },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = JourneyLensColors.AppleBlue
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("选择照片")
-        }
-    }
-}
-
-/**
- * 审核确认内容
- */
-@Composable
-private fun ReviewContent(
-    pendingImports: List<PendingImport>,
-    isLoading: Boolean,
-    onLocationUpdate: (Int, Double, Double) -> Unit,
-    onEmojiUpdate: (Int, String) -> Unit,
-    onConfirm: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        // 标题
-        Text(
-            text = "确认导入",
-            style = MaterialTheme.typography.headlineLarge,
-            color = JourneyLensColors.TextPrimary
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = "请确认位置并选择标记图标",
+            text = "这些照片是在哪里拍的？",
             style = MaterialTheme.typography.bodyMedium,
             color = JourneyLensColors.TextSecondary
         )
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         
-        // 列表
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            itemsIndexed(pendingImports) { index, item ->
-                PendingImportCard(
-                    item = item,
-                    onLocationUpdate = { lat, lng -> onLocationUpdate(index, lat, lng) },
-                    onEmojiUpdate = { emoji -> onEmojiUpdate(index, emoji) }
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // 确认按钮
-        val validCount = pendingImports.count { it.latitude != null && it.longitude != null }
+        // 使用当前定位
         Button(
-            onClick = onConfirm,
-            enabled = validCount > 0 && !isLoading,
+            onClick = { 
+                isGettingLocation = true
+                // TODO: 实际获取 GPS 定位
+                // 暂时使用模拟位置
+                onUseCurrentLocation(31.2304, 121.4737, "上海市")
+            },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = JourneyLensColors.AppleBlue
             ),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("导入 $validCount 条记忆")
+            Icon(Icons.Default.MyLocation, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("使用当前定位")
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // 地图选点
+        OutlinedButton(
+            onClick = { showMapPicker = true },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = JourneyLensColors.AppleBlue
+            )
+        ) {
+            Icon(Icons.Default.Map, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("在地图上选点")
         }
     }
 }
 
 /**
- * 待导入项卡片
+ * 步骤 2: 选择照片
  */
 @Composable
-private fun PendingImportCard(
-    item: PendingImport,
-    onLocationUpdate: (Double, Double) -> Unit,
-    onEmojiUpdate: (String) -> Unit
+private fun PhotosStep(
+    photoUris: List<String>,
+    onAddPhotos: (List<String>) -> Unit,
+    onRemovePhoto: (Int) -> Unit,
+    onConfirm: () -> Unit,
+    onBack: () -> Unit
 ) {
-    // 控制地图选点对话框显示
-    var showLocationPicker by remember { mutableStateOf(false) }
-    // 控制 emoji 选择器对话框显示
-    var showEmojiPicker by remember { mutableStateOf(false) }
+    val launchPicker = rememberPhotoPicker(onAddPhotos)
     
-    // 显示地图选点对话框
-    if (showLocationPicker) {
-        com.lm.journeylens.feature.memory.component.LocationPickerDialog(
-            onDismiss = { showLocationPicker = false },
-            onLocationSelected = { lat, lng ->
-                onLocationUpdate(lat, lng)
-                showLocationPicker = false
-            }
-        )
-    }
-    
-    // 显示 emoji 选择器对话框
-    if (showEmojiPicker) {
-        com.lm.journeylens.feature.memory.component.EmojiPickerDialog(
-            currentEmoji = item.emoji,
-            onEmojiSelected = { emoji ->
-                onEmojiUpdate(emoji)
-            },
-            onDismiss = { showEmojiPicker = false }
-        )
-    }
-    
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = JourneyLensColors.SurfaceLight
-        )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
+        // 顶部栏
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Emoji 标记（可点击更换）
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+            }
+            Text(
+                text = "选择照片",
+                style = MaterialTheme.typography.titleLarge,
+                color = JourneyLensColors.TextPrimary
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = "添加这个地点的照片",
+            style = MaterialTheme.typography.bodyMedium,
+            color = JourneyLensColors.TextSecondary
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // 照片网格
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            // 已选照片
+            itemsIndexed(photoUris) { index, uri ->
+                PhotoThumbnail(
+                    uri = uri,
+                    onRemove = { onRemovePhoto(index) }
+                )
+            }
+            
+            // 添加按钮
+            item {
                 Box(
                     modifier = Modifier
-                        .size(50.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(JourneyLensColors.AppleBlue.copy(alpha = 0.1f))
-                        .clickable { showEmojiPicker = true },
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(JourneyLensColors.SurfaceLight)
+                        .border(
+                            2.dp,
+                            JourneyLensColors.AppleBlue.copy(alpha = 0.5f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { launchPicker() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = item.emoji,
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                }
-                
-                Spacer(modifier = Modifier.width(12.dp))
-                
-                // 信息
-                Column(modifier = Modifier.weight(1f)) {
-                    // 状态
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        when {
-                            item.isAutoLocated -> {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = JourneyLensColors.AppleGreen,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    "自动定位",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = JourneyLensColors.AppleGreen
-                                )
-                            }
-                            item.isSuggested -> {
-                                Icon(
-                                    Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = JourneyLensColors.AppleOrange,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    "推测位置",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = JourneyLensColors.AppleOrange
-                                )
-                            }
-                            item.latitude == null -> {
-                                Icon(
-                                    Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = JourneyLensColors.ApplePink,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    "需要手动选点",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = JourneyLensColors.ApplePink
-                                )
-                            }
-                        }
-                    }
-                    
-                    // 坐标
-                    if (item.latitude != null && item.longitude != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "添加照片",
+                            tint = JourneyLensColors.AppleBlue,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "%.4f, %.4f".format(item.latitude, item.longitude),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = JourneyLensColors.TextSecondary
+                            "添加照片",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = JourneyLensColors.AppleBlue
                         )
                     }
                 }
-                
-                // 编辑按钮
-                if (item.latitude == null || item.isSuggested) {
-                    TextButton(onClick = { showLocationPicker = true }) {
-                        Text("选点", color = JourneyLensColors.AppleBlue)
-                    }
-                }
             }
-            
-            // 点击更换 emoji 提示
-            Text(
-                text = "点击图标可更换标记",
-                style = MaterialTheme.typography.labelSmall,
-                color = JourneyLensColors.TextTertiary,
-                modifier = Modifier.padding(top = 4.dp)
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // 确认按钮
+        Button(
+            onClick = onConfirm,
+            enabled = photoUris.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = JourneyLensColors.AppleBlue
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("下一步 (${photoUris.size} 张照片)")
+        }
+    }
+}
+
+/**
+ * 照片缩略图
+ */
+@Composable
+private fun PhotoThumbnail(
+    uri: String,
+    onRemove: () -> Unit
+) {
+    Box(
+        modifier = Modifier.size(120.dp)
+    ) {
+        AsyncImage(
+            model = uri,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Crop
+        )
+        
+        // 删除按钮
+        IconButton(
+            onClick = onRemove,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(28.dp)
+                .background(
+                    JourneyLensColors.ApplePink,
+                    CircleShape
+                )
+        ) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "删除",
+                tint = androidx.compose.ui.graphics.Color.White,
+                modifier = Modifier.size(16.dp)
             )
         }
     }
 }
 
 /**
- * 成功内容
+ * 步骤 3: 填写详情
  */
 @Composable
-private fun SuccessContent(
-    count: Int,
+private fun DetailsStep(
+    photoUris: List<String>,
+    emoji: String,
+    note: String?,
+    onEmojiChange: (String) -> Unit,
+    onNoteChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onBack: () -> Unit
+) {
+    var showEmojiPicker by remember { mutableStateOf(false) }
+    var noteText by remember { mutableStateOf(note ?: "") }
+    
+    if (showEmojiPicker) {
+        EmojiPickerDialog(
+            currentEmoji = emoji,
+            onEmojiSelected = onEmojiChange,
+            onDismiss = { showEmojiPicker = false }
+        )
+    }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        // 顶部栏
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+            }
+            Text(
+                text = "完善信息",
+                style = MaterialTheme.typography.titleLarge,
+                color = JourneyLensColors.TextPrimary
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // 照片预览
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.height(80.dp)
+        ) {
+            itemsIndexed(photoUris) { _, uri ->
+                AsyncImage(
+                    model = uri,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // Emoji 选择
+        Text(
+            text = "选择图标",
+            style = MaterialTheme.typography.titleSmall,
+            color = JourneyLensColors.TextPrimary
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 当前选中的 emoji
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(JourneyLensColors.AppleBlue.copy(alpha = 0.1f))
+                    .border(2.dp, JourneyLensColors.AppleBlue, RoundedCornerShape(12.dp))
+                    .clickable { showEmojiPicker = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(emoji, style = MaterialTheme.typography.headlineMedium)
+            }
+            
+            // 快速选择
+            PRESET_EMOJIS.take(6).forEach { e ->
+                if (e != emoji) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(JourneyLensColors.SurfaceLight)
+                            .clickable { onEmojiChange(e) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(e, style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
+            
+            // 更多
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(JourneyLensColors.SurfaceLight)
+                    .clickable { showEmojiPicker = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("...", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // 备注输入
+        Text(
+            text = "添加备注",
+            style = MaterialTheme.typography.titleSmall,
+            color = JourneyLensColors.TextPrimary
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        OutlinedTextField(
+            value = noteText,
+            onValueChange = { 
+                noteText = it
+                onNoteChange(it)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 120.dp),
+            placeholder = {
+                Text(
+                    "记录这一刻的心情、故事...",
+                    color = JourneyLensColors.TextTertiary
+                )
+            },
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = JourneyLensColors.AppleBlue,
+                unfocusedBorderColor = JourneyLensColors.TextTertiary.copy(alpha = 0.3f)
+            )
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // 保存按钮
+        Button(
+            onClick = onSave,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = JourneyLensColors.AppleBlue
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Default.Check, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("保存记忆")
+        }
+    }
+}
+
+/**
+ * 成功页面
+ */
+@Composable
+private fun SuccessStep(
     onDone: () -> Unit
 ) {
     Column(
@@ -362,7 +517,7 @@ private fun SuccessContent(
         Spacer(modifier = Modifier.height(16.dp))
         
         Text(
-            text = "导入成功！",
+            text = "保存成功！",
             style = MaterialTheme.typography.headlineLarge,
             color = JourneyLensColors.TextPrimary
         )
@@ -370,7 +525,7 @@ private fun SuccessContent(
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "已添加 $count 条新记忆",
+            text = "记忆已添加到你的时间轴",
             style = MaterialTheme.typography.bodyMedium,
             color = JourneyLensColors.TextSecondary
         )
@@ -384,7 +539,7 @@ private fun SuccessContent(
             ),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("完成")
+            Text("继续添加")
         }
     }
 }
