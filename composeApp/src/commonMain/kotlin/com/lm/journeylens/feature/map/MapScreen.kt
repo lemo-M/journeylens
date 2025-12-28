@@ -52,8 +52,9 @@ import cafe.adriel.voyager.koin.getScreenModel
  * 地图页面 - 战争迷雾探索地图
  */
 @Composable
-fun MapScreen() {
-    val screenModel: MapScreenModel = getScreenModel()
+fun MapScreen(
+    screenModel: MapScreenModel
+) {
     val repository: MemoryRepository = koinInject()
     val draftService: DraftService = koinInject()
     val uiState by screenModel.uiState.collectAsState()

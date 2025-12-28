@@ -27,8 +27,12 @@ object MapTab : Tab {
             }
         }
 
+import cafe.adriel.voyager.koin.getScreenModel
+import com.lm.journeylens.feature.map.MapScreenModel
+
     @Composable
     override fun Content() {
-        MapScreen()
+        val screenModel = getScreenModel<MapScreenModel>()
+        MapScreen(screenModel)
     }
 }
