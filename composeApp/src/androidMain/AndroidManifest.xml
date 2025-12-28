@@ -42,6 +42,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <!-- 高德定位服务 -->
+        <service android:name="com.amap.api.location.APSService" />
     </application>
 
 </manifest>

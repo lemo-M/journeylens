@@ -52,6 +52,7 @@ actual class LocationService(private val context: Context) {
                         continuation.resume(result)
                     } else {
                         // 定位失败
+                        android.util.Log.e("LocationService", "定位失败: errCode=${location?.errorCode} errInfo=${location?.errorInfo}")
                         continuation.resume(null)
                     }
                     locationClient?.stopLocation()
