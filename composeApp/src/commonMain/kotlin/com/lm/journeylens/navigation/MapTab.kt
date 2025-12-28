@@ -8,6 +8,8 @@ import cafe.adriel.voyager.navigator.tab.TabOptions
 import com.lm.journeylens.feature.map.MapScreen
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Map
+import cafe.adriel.voyager.koin.getScreenModel
+import com.lm.journeylens.feature.map.MapScreenModel
 
 /**
  * 地图 Tab - 战争迷雾主页面
@@ -27,8 +29,7 @@ object MapTab : Tab {
             }
         }
 
-import cafe.adriel.voyager.koin.getScreenModel
-import com.lm.journeylens.feature.map.MapScreenModel
+
 
     @Composable
     override fun Content() {

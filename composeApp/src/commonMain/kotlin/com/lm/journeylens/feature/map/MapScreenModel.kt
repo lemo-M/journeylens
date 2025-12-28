@@ -48,14 +48,18 @@ class MapScreenModel(
         scope.launch {
             // 如果还没有保存的相机位置，尝试获取当前位置
             if (_uiState.value.cameraPosition == null) {
-                locationService.getLastLocation()?.let { location ->
-                    _uiState.value = _uiState.value.copy(
-                        cameraPosition = MapCameraPosition(
-                            latitude = location.latitude,
-                            longitude = location.longitude,
-                            zoom = 15f
+                try {
+                    locationService.getCurrentLocation()?.let { location ->
+                        _uiState.value = _uiState.value.copy(
+                            cameraPosition = MapCameraPosition(
+                                latitude = location.latitude,
+                                longitude = location.longitude,
+                                zoom = 15f
+                            )
                         )
-                    )
+                    }
+                } catch (e: Exception) {
+                    // 定位失败，忽略错误，使用默认位置
                 }
             }
         }
