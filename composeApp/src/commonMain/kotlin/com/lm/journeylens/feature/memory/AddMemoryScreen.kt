@@ -10,6 +10,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -257,14 +260,14 @@ private fun PhotosStep(
         Spacer(modifier = Modifier.height(16.dp))
         
         // 照片网格
-        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
-            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(3),
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.weight(1f)
         ) {
             // 已选照片
-            androidx.compose.foundation.lazy.grid.itemsIndexed(photoUris) { index, uri ->
+            itemsIndexed(photoUris) { index, uri ->
                 PhotoThumbnail(
                     uri = uri,
                     onRemove = { onRemovePhoto(index) }
