@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.lm.journeylens.core.domain.model.Memory
-import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.core.theme.JourneyLensColors
 import com.lm.journeylens.feature.map.component.AddMemoryCard
 import com.lm.journeylens.feature.map.component.MapCameraControl
@@ -31,9 +30,7 @@ import com.lm.journeylens.feature.map.component.MapMemoryDetailCard
 import com.lm.journeylens.feature.map.component.MapView
 
 import com.lm.journeylens.feature.memory.MemoryDetailScreen
-import com.lm.journeylens.feature.memory.service.DraftService
 import com.lm.journeylens.navigation.AddTab
-import cafe.adriel.voyager.koin.getScreenModel
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -45,8 +42,6 @@ import org.koin.compose.koinInject
 fun MapScreen(
     screenModel: MapScreenModel
 ) {
-    val repository: MemoryRepository = koinInject()
-    val draftService: DraftService = koinInject()
     val uiState by screenModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     
@@ -271,18 +266,14 @@ fun MapScreen(
             MemoryDetailScreen(
                 memory = editingMemory!!,
                 onSave = { updatedMemory ->
-                    scope.launch {
-                        repository.update(updatedMemory)
-                        showDetailDialog = false
-                        editingMemory = null
-                    }
+                    screenModel.updateMemory(updatedMemory)
+                    showDetailDialog = false
+                    editingMemory = null
                 },
                 onDelete = {
-                    scope.launch {
-                        repository.delete(editingMemory!!)
-                        showDetailDialog = false
-                        editingMemory = null
-                    }
+                    screenModel.deleteMemory(editingMemory!!)
+                    showDetailDialog = false
+                    editingMemory = null
                 },
                 onDismiss = {
                     showDetailDialog = false

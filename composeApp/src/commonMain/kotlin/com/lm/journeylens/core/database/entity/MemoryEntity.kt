@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -46,7 +47,7 @@ data class MemoryEntity(
     
     // 时间信息
     val timestamp: Long,  // 主要时间戳
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
     
     // 照片组（多张照片 URI）
     val photoUris: List<String> = emptyList(),

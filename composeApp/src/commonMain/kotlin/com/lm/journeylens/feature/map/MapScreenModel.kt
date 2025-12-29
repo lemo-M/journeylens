@@ -89,4 +89,22 @@ class MapScreenModel(
             cameraPosition = MapCameraPosition(latitude, longitude, zoom)
         )
     }
+    
+    /**
+     * 更新记忆
+     */
+    fun updateMemory(memory: Memory) {
+        screenModelScope.launch {
+            memoryRepository.update(memory)
+        }
+    }
+    
+    /**
+     * 删除记忆
+     */
+    fun deleteMemory(memory: Memory) {
+        screenModelScope.launch {
+            memoryRepository.delete(memory)
+        }
+    }
 }

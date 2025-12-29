@@ -50,6 +50,24 @@ class TimelineScreenModel(
     fun clearSelection() {
         _uiState.value = _uiState.value.copy(selectedMemory = null)
     }
+    
+    /**
+     * 更新记忆
+     */
+    fun updateMemory(memory: Memory) {
+        screenModelScope.launch {
+            memoryRepository.update(memory)
+        }
+    }
+    
+    /**
+     * 删除记忆
+     */
+    fun deleteMemory(memory: Memory) {
+        screenModelScope.launch {
+            memoryRepository.delete(memory)
+        }
+    }
 }
 
 /**

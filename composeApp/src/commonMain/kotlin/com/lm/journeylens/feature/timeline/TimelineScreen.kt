@@ -23,15 +23,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.lm.journeylens.core.domain.model.Memory
-import com.lm.journeylens.core.repository.MemoryRepository
 import com.lm.journeylens.core.theme.JourneyLensColors
 import com.lm.journeylens.feature.memory.MemoryDetailScreen
 import com.lm.journeylens.feature.timeline.component.SpiralTimeline
-import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.koin.compose.koinInject
 import com.lm.journeylens.core.util.formatCoordinates
 
 /**
@@ -39,12 +36,9 @@ import com.lm.journeylens.core.util.formatCoordinates
  */
 @Composable
 fun TimelineScreen(
-    screenModel: TimelineScreenModel,
-    // TODO: Repository should eventually be moved to UseCases in Phase 2
-    repository: MemoryRepository = koinInject() 
+    screenModel: TimelineScreenModel
 ) {
     val uiState by screenModel.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
     
     // 控制详情编辑对话框
     var showDetailDialog by remember { mutableStateOf(false) }
@@ -132,18 +126,14 @@ fun TimelineScreen(
             MemoryDetailScreen(
                 memory = editingMemory!!,
                 onSave = { updatedMemory ->
-                    scope.launch {
-                        repository.update(updatedMemory)
-                        showDetailDialog = false
-                        editingMemory = null
-                    }
+                    screenModel.updateMemory(updatedMemory)
+                    showDetailDialog = false
+                    editingMemory = null
                 },
                 onDelete = {
-                    scope.launch {
-                        repository.delete(editingMemory!!)
-                        showDetailDialog = false
-                        editingMemory = null
-                    }
+                    screenModel.deleteMemory(editingMemory!!)
+                    showDetailDialog = false
+                    editingMemory = null
                 },
                 onDismiss = {
                     showDetailDialog = false

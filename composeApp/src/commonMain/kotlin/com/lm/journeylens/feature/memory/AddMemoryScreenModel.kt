@@ -314,9 +314,9 @@ class AddMemoryScreenModel(
         }
         
         screenModelScope.launch {
-            updateState { it.copy(isLoading = true) }
+            updateState { it.copy(isLoading = true, errorMessage = null) }
             
-            createMemoryUseCase(
+            val result = createMemoryUseCase(
                 latitude = state.latitude,
                 longitude = state.longitude,
                 locationName = state.locationName,
@@ -326,10 +326,15 @@ class AddMemoryScreenModel(
                 isAutoLocated = state.isAutoLocated
             )
             
-            // 成功后清除草稿
-            discardDraftUseCase()
-            
-            updateState { AddMemoryUiState(step = ImportStep.SUCCESS) }
+            result
+                .onSuccess {
+                    // 成功后清除草稿
+                    discardDraftUseCase()
+                    updateState { AddMemoryUiState(step = ImportStep.SUCCESS) }
+                }
+                .onError { error ->
+                    updateState { it.copy(isLoading = false, errorMessage = error.message ?: "保存失败") }
+                }
         }
     }
     
@@ -377,6 +382,7 @@ enum class ImportStep {
 data class AddMemoryUiState(
     val step: ImportStep = ImportStep.LOCATION,
     val isLoading: Boolean = false,
+    val errorMessage: String? = null,
     
     // 位置
     val latitude: Double? = null,
