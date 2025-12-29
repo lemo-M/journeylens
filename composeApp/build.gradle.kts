@@ -87,6 +87,17 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+    
+    // 使用 ABI 分包，生成针对特定 CPU 架构的超小包
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -94,7 +105,10 @@ android {
     }
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            // 开启混淆和资源压缩
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
