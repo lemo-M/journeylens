@@ -6,6 +6,7 @@ import platform.Foundation.NSHomeDirectory
 
 /**
  * iOS 平台的数据库构建器
+ * Room 会通过 @ConstructedBy 注解自动处理数据库实例化
  */
 actual fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
     val dbFilePath = NSHomeDirectory() + "/Documents/journeylens.db"

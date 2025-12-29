@@ -1,6 +1,7 @@
 package com.lm.journeylens.feature.memory.service
 
 import com.lm.journeylens.feature.memory.AddMemoryUiState
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import platform.Foundation.*
@@ -11,6 +12,7 @@ import kotlinx.coroutines.withContext
 /**
  * iOS 草稿服务实现
  */
+@OptIn(ExperimentalForeignApi::class)
 class IosDraftService : DraftService {
     private val fileManager = NSFileManager.defaultManager
     private val documentsUrl = fileManager.URLsForDirectory(NSDocumentDirectory, NSUserDomainMask).first() as NSURL

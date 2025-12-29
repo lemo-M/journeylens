@@ -10,7 +10,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import com.lm.journeylens.core.domain.model.Memory
 import com.lm.journeylens.core.theme.JourneyLensColors
@@ -165,7 +164,8 @@ private fun calculateSpiralPosition(
 }
 
 /**
- * 绘制记忆点（带 emoji）
+ * 绘制记忆点（带 emoji 指示器）
+ * 使用纯图形绘制，跨平台兼容
  */
 private fun DrawScope.drawMemoryPoint(
     position: Offset,
@@ -198,15 +198,11 @@ private fun DrawScope.drawMemoryPoint(
         style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f * scale)
     )
     
-    // 绘制 emoji 文字
-    drawContext.canvas.nativeCanvas.apply {
-        val textSize = radius * 1.2f
-        val paint = android.graphics.Paint().apply {
-            this.textSize = textSize
-            textAlign = android.graphics.Paint.Align.CENTER
-        }
-        // 垂直居中调整
-        val yOffset = textSize * 0.35f
-        drawText(emoji, position.x, position.y + yOffset, paint)
-    }
+    // 使用内圈颜色指示器代替 emoji（跨平台兼容）
+    // TODO: 未来可以使用 Compose Text 组件配合 Layout 来显示 emoji
+    drawCircle(
+        color = JourneyLensColors.AppleBlue.copy(alpha = 0.6f),
+        radius = radius * 0.5f,
+        center = position
+    )
 }
