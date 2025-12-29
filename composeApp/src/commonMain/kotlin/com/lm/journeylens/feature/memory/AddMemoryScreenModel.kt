@@ -57,7 +57,7 @@ class AddMemoryScreenModel(
      * 如果有照片草稿，显示对话框让用户选择
      */
     suspend fun checkDraftBeforePhotos(): Boolean {
-        val draft = getDraftUseCase()
+        val draft = getDraftUseCase().getOrNull()
         if (draft != null) {
             _draftPhotoCount.value = draft.photoUris.size
             _showDraftDialog.value = true
@@ -71,7 +71,7 @@ class AddMemoryScreenModel(
      */
     fun restoreDraftPhotos() {
         screenModelScope.launch {
-            val draft = getDraftUseCase()
+            val draft = getDraftUseCase().getOrNull()
             if (draft != null) {
                 // 只恢复照片、emoji、备注，保持当前位置
                 val currentState = _uiState.value
