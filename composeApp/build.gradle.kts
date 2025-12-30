@@ -34,8 +34,8 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.android)
             implementation(libs.androidx.exifinterface)
-            // 高德地图 SDK（已包含定位功能）
-            implementation("com.amap.api:3dmap:latest.integration")
+            // 高德地图 SDK（已包含定位功能）- 使用固定版本避免每次构建检查更新
+            implementation(libs.amap.map)
         }
         commonMain.dependencies {
             // --- Room 依赖 ---
