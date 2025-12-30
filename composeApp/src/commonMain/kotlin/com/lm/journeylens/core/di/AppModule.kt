@@ -45,12 +45,14 @@ val featureModule = module {
     factory { com.lm.journeylens.feature.memory.domain.usecase.DiscardDraftUseCase(get()) }
     factory { com.lm.journeylens.feature.memory.domain.usecase.CreateMemoryUseCase(get()) }
 
+    // DraftManager - 草稿管理器
+    factory { com.lm.journeylens.feature.memory.domain.DraftManager(get(), get(), get()) }
+
     // Map ScreenModel
     factory { MapScreenModel(get(), get()) }
     
-    // AddMemory ScreenModel (UseCases + GlobalState)
-    // 恢复为 factory，不再需要单例共享，通过 GlobalCreationState 共享数据
-    factory { AddMemoryScreenModel(get(), get(), get(), get(), get()) }
+    // AddMemory ScreenModel（通过 DraftManager 简化依赖）
+    factory { AddMemoryScreenModel(get(), get(), get()) }
     
     // Timeline ScreenModel
     factory { TimelineScreenModel(get()) }

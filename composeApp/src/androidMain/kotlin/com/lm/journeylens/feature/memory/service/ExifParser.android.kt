@@ -67,11 +67,12 @@ actual class ExifParser(
             val exif = ExifInterface(inputStream)
             
             // 解析 GPS 坐标
-            val latLong = FloatArray(2)
-            val hasGps = exif.getLatLong(latLong)
+
+            // 解析 GPS 坐标
+            val latLong = exif.latLong
             
             // 验证 GPS 数据是否有效（非 0,0）
-            val validGps = hasGps && (latLong[0] != 0f || latLong[1] != 0f)
+            val validGps = latLong != null && (latLong[0] != 0.0 || latLong[1] != 0.0)
             
             // 解析拍摄时间
             val timestamp = parseDateTime(exif)
@@ -79,8 +80,8 @@ actual class ExifParser(
             inputStream.close()
             
             ExifData(
-                latitude = if (validGps) latLong[0].toDouble() else null,
-                longitude = if (validGps) latLong[1].toDouble() else null,
+                latitude = if (validGps) latLong!![0] else null,
+                longitude = if (validGps) latLong!![1] else null,
                 timestamp = timestamp
             )
         } catch (e: Exception) {
@@ -93,6 +94,9 @@ actual class ExifParser(
      * 直接使用 URI 查询 MediaStore
      */
     private fun parseFromMediaStoreByUri(uri: Uri): ExifData? {
+        // MediaStore.Images.Media.LATITUDE/LONGITUDE 在 API 29+ 已废弃
+        // 但为了兼容旧版本，这里保留并镇压警告，现代设备应主要依赖 Exif 解析
+        @Suppress("DEPRECATION")
         return try {
             val projection = arrayOf(
                 MediaStore.Images.Media.LATITUDE,

@@ -2,10 +2,9 @@ package com.lm.journeylens.feature.memory
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import com.lm.journeylens.feature.memory.domain.DraftManager
+import com.lm.journeylens.feature.memory.domain.state.GlobalCreationState
 import com.lm.journeylens.feature.memory.domain.usecase.CreateMemoryUseCase
-import com.lm.journeylens.feature.memory.domain.usecase.DiscardDraftUseCase
-import com.lm.journeylens.feature.memory.domain.usecase.GetDraftUseCase
-import com.lm.journeylens.feature.memory.domain.usecase.SaveDraftUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,16 +16,19 @@ import kotlinx.serialization.Serializable
  * 新流程：选位置 → 选照片 → 填写详情
  */
 class AddMemoryScreenModel(
-    private val getDraftUseCase: GetDraftUseCase,
-    private val saveDraftUseCase: SaveDraftUseCase,
-    private val discardDraftUseCase: DiscardDraftUseCase,
+    private val draftManager: DraftManager,
     private val createMemoryUseCase: CreateMemoryUseCase,
-    private val globalCreationState: com.lm.journeylens.feature.memory.domain.state.GlobalCreationState
+    private val globalCreationState: GlobalCreationState
 ) : ScreenModel {
     
     // UI 状态
     private val _uiState = MutableStateFlow(AddMemoryUiState())
     val uiState: StateFlow<AddMemoryUiState> = _uiState.asStateFlow()
+    
+    // 委托给 DraftManager 的状态
+    val draftPhotoCount: StateFlow<Int> = draftManager.draftPhotoCount
+    val showDraftDialog: StateFlow<Boolean> = draftManager.showDraftDialog
+    val showExitConfirmDialog: StateFlow<Boolean> = draftManager.showExitConfirmDialog
     
     init {
         // 监听全局创建状态（从地图页带入的位置信息）
@@ -40,221 +42,136 @@ class AddMemoryScreenModel(
         }
     }
     
-    // 草稿中的照片数量（用于显示）
-    private val _draftPhotoCount = MutableStateFlow(0)
-    val draftPhotoCount: StateFlow<Int> = _draftPhotoCount.asStateFlow()
-    
-    // 是否显示草稿恢复对话框
-    private val _showDraftDialog = MutableStateFlow(false)
-    val showDraftDialog: StateFlow<Boolean> = _showDraftDialog.asStateFlow()
-    
-    // 是否显示退出确认对话框（从照片选择页返回时）
-    private val _showExitConfirmDialog = MutableStateFlow(false)
-    val showExitConfirmDialog: StateFlow<Boolean> = _showExitConfirmDialog.asStateFlow()
+    // ==================== 草稿相关（委托给 DraftManager）====================
     
     /**
-     * 进入照片选择步骤前检测草稿
-     * 如果有照片草稿，显示对话框让用户选择
-     */
-    suspend fun checkDraftBeforePhotos(): Boolean {
-        val draft = getDraftUseCase().getOrNull()
-        if (draft != null) {
-            _draftPhotoCount.value = draft.photoUris.size
-            _showDraftDialog.value = true
-            return true // 有草稿，需要用户决定
-        }
-        return false // 没有草稿，直接进入
-    }
-    
-    /**
-     * 用户选择恢复草稿（只恢复照片、emoji、备注）
+     * 用户选择恢复草稿
      */
     fun restoreDraftPhotos() {
         screenModelScope.launch {
-            val draft = getDraftUseCase().getOrNull()
+            val draft = draftManager.getDraft()
             if (draft != null) {
-                // 只恢复照片、emoji、备注，保持当前位置
-                val currentState = _uiState.value
-                _uiState.value = currentState.copy(
+                _uiState.value = _uiState.value.copy(
                     step = ImportStep.PHOTOS,
                     photoUris = draft.photoUris,
                     emoji = draft.emoji,
                     note = draft.note
                 )
             }
-            _showDraftDialog.value = false
+            draftManager.dismissDraftDialog()
         }
     }
     
     /**
-     * 用户选择不恢复草稿（清空并开始新选择）
+     * 用户选择不恢复草稿
      */
     fun discardDraft() {
         screenModelScope.launch {
-            discardDraftUseCase()
-            _showDraftDialog.value = false
-            // 清空所有草稿内容，重置为初始值
-            _uiState.value = _uiState.value.copy(
-                step = ImportStep.PHOTOS,
-                photoUris = emptyList(),
-                emoji = "📍",
-                note = null
+            draftManager.discardDraft()
+            draftManager.dismissDraftDialog()
+            _uiState.value = draftManager.createEmptyState().copy(
+                latitude = _uiState.value.latitude,
+                longitude = _uiState.value.longitude,
+                locationName = _uiState.value.locationName,
+                isAutoLocated = _uiState.value.isAutoLocated
             )
         }
     }
     
-    /**
-     * 关闭草稿对话框（视作放弃草稿）
-     */
-    fun dismissDraftDialog() {
-        _showDraftDialog.value = false
-    }
+    fun dismissDraftDialog() = draftManager.dismissDraftDialog()
     
-    /**
-     * 从照片选择页请求返回
-     * 如果有照片，显示确认对话框；否则直接返回
-     */
+    // ==================== 退出确认相关 ====================
+    
     fun requestExitFromPhotos() {
         val currentPhotos = _uiState.value.photoUris
         if (currentPhotos.isNotEmpty()) {
-            _draftPhotoCount.value = currentPhotos.size
-            _showExitConfirmDialog.value = true
+            draftManager.showExitConfirmDialog(currentPhotos.size)
         } else {
-            // 没有照片，直接返回
             _uiState.value = _uiState.value.copy(step = ImportStep.LOCATION)
         }
     }
     
-    /**
-     * 用户选择保存草稿后返回
-     */
     fun confirmExitWithSave() {
-        // 草稿已经在 updateState 中自动保存了，直接返回即可
-        _showExitConfirmDialog.value = false
+        draftManager.dismissExitConfirmDialog()
         _uiState.value = _uiState.value.copy(step = ImportStep.LOCATION)
     }
     
-    /**
-     * 用户选择不保存草稿后返回
-     */
     fun confirmExitWithoutSave() {
         screenModelScope.launch {
-            discardDraftUseCase()
-            _showExitConfirmDialog.value = false
-            // 清空照片等内容并返回
-            _uiState.value = _uiState.value.copy(
+            draftManager.discardDraft()
+            draftManager.dismissExitConfirmDialog()
+            _uiState.value = draftManager.createEmptyState().copy(
                 step = ImportStep.LOCATION,
-                photoUris = emptyList(),
-                emoji = "📍",
-                note = null
+                latitude = _uiState.value.latitude,
+                longitude = _uiState.value.longitude
             )
         }
     }
     
-    /**
-     * 关闭退出确认对话框
-     */
-    fun dismissExitConfirmDialog() {
-        _showExitConfirmDialog.value = false
-    }
+    fun dismissExitConfirmDialog() = draftManager.dismissExitConfirmDialog()
     
-    /**
-     * 更新状态并自动保存草稿
-     * 草稿只保存照片、emoji、备注（不保存位置）
-     */
+    // ==================== 状态更新 ====================
+    
     private fun updateState(update: (AddMemoryUiState) -> AddMemoryUiState) {
         val newState = update(_uiState.value)
         _uiState.value = newState
         
-        // 只有有照片时才保存草稿（成功状态除外）
-        if (newState.step != ImportStep.SUCCESS && newState.photoUris.isNotEmpty()) {
-            screenModelScope.launch {
-                // 只保存照片相关内容，不保存位置
-                val draftState = AddMemoryUiState(
-                    step = ImportStep.PHOTOS,
-                    photoUris = newState.photoUris,
-                    emoji = newState.emoji,
-                    note = newState.note
-                )
-                saveDraftUseCase(draftState)
-            }
+        // 自动保存草稿
+        screenModelScope.launch {
+            draftManager.saveDraft(newState)
         }
     }
     
-    /**
-     * 步骤 1: 设置位置（当前定位）
-     * 设置位置后检测是否有草稿
-     */
+    // ==================== 步骤 1: 位置设置 ====================
+    
     fun setLocationFromGps(latitude: Double, longitude: Double, locationName: String? = null) {
-        // 先设置位置（但不进入 PHOTOS 步骤）
         _uiState.value = _uiState.value.copy(
             latitude = latitude,
             longitude = longitude,
             locationName = locationName,
             isAutoLocated = true
         )
-        // 检测草稿并决定下一步
         screenModelScope.launch {
-            val hasDraft = checkDraftBeforePhotos()
+            val hasDraft = draftManager.checkDraftBeforePhotos()
             if (!hasDraft) {
-                // 没有草稿，直接进入 PHOTOS 步骤
                 _uiState.value = _uiState.value.copy(step = ImportStep.PHOTOS)
             }
-            // 如果有草稿，对话框会显示，用户选择后才更新步骤
         }
     }
     
-    /**
-     * 步骤 1: 设置位置（地图选点）
-     * 设置位置后检测是否有草稿
-     */
     fun setLocationFromMap(latitude: Double, longitude: Double) {
-        // 先设置位置（但不进入 PHOTOS 步骤）
         _uiState.value = _uiState.value.copy(
             latitude = latitude,
             longitude = longitude,
             isAutoLocated = false
         )
-        // 检测草稿并决定下一步
         screenModelScope.launch {
-            val hasDraft = checkDraftBeforePhotos()
+            val hasDraft = draftManager.checkDraftBeforePhotos()
             if (!hasDraft) {
-                // 没有草稿，直接进入 PHOTOS 步骤
                 _uiState.value = _uiState.value.copy(step = ImportStep.PHOTOS)
             }
-            // 如果有草稿，对话框会显示，用户选择后才更新步骤
         }
     }
     
-    /**
-     * 从地图页添加记忆时使用的挂起方法
-     * 设置位置并等待草稿检测完成，返回后调用方可以安全导航
-     */
     private suspend fun setLocationFromMapAndPrepare(latitude: Double, longitude: Double) {
-        // 先设置位置
         _uiState.value = _uiState.value.copy(
             latitude = latitude,
             longitude = longitude,
             isAutoLocated = false
         )
-        // 检测草稿并设置下一步（同步等待）
-        val hasDraft = checkDraftBeforePhotos()
+        val hasDraft = draftManager.checkDraftBeforePhotos()
         if (!hasDraft) {
-            // 没有草稿，直接进入 PHOTOS 步骤
             _uiState.value = _uiState.value.copy(step = ImportStep.PHOTOS)
         }
-        // 如果有草稿，对话框会显示，用户选择后才更新步骤
     }
     
-    /**
-     * 步骤 2: 添加照片 (最多 20 张)
-     */
+    // ==================== 步骤 2: 照片管理 ====================
+    
     fun addPhotos(photoUris: List<String>) {
         updateState { state ->
             val currentPhotos = state.photoUris.toMutableList()
-            val remainingSlots = 20 - currentPhotos.size
+            val remainingSlots = MemoryConfig.MAX_PHOTOS - currentPhotos.size
             if (remainingSlots > 0) {
-                // 只添加不超过剩余配额的照片
                 val photosToAdd = photoUris.take(remainingSlots)
                 currentPhotos.addAll(photosToAdd)
             }
@@ -262,9 +179,6 @@ class AddMemoryScreenModel(
         }
     }
     
-    /**
-     * 步骤 2: 移除照片
-     */
     fun removePhoto(index: Int) {
         updateState { state ->
             val currentPhotos = state.photoUris.toMutableList()
@@ -277,9 +191,6 @@ class AddMemoryScreenModel(
         }
     }
     
-    /**
-     * 步骤 2: 确认照片，进入详情步骤
-     */
     fun confirmPhotos() {
         updateState { state ->
             if (state.photoUris.isNotEmpty()) {
@@ -290,23 +201,18 @@ class AddMemoryScreenModel(
         }
     }
     
-    /**
-     * 步骤 3: 更新 emoji
-     */
+    // ==================== 步骤 3: 详情填写 ====================
+    
     fun updateEmoji(emoji: String) {
         updateState { it.copy(emoji = emoji) }
     }
     
-    /**
-     * 步骤 3: 更新备注
-     */
     fun updateNote(note: String) {
         updateState { it.copy(note = note) }
     }
     
-    /**
-     * 保存记忆
-     */
+    // ==================== 保存记忆 ====================
+    
     fun saveMemory() {
         val state = _uiState.value
         if (state.latitude == null || state.longitude == null || state.photoUris.isEmpty()) {
@@ -328,8 +234,7 @@ class AddMemoryScreenModel(
             
             result
                 .onSuccess {
-                    // 成功后清除草稿
-                    discardDraftUseCase()
+                    draftManager.discardDraft()
                     updateState { AddMemoryUiState(step = ImportStep.SUCCESS) }
                 }
                 .onError { error ->
@@ -338,27 +243,22 @@ class AddMemoryScreenModel(
         }
     }
     
-    /**
-     * 返回上一步
-     */
+    // ==================== 导航控制 ====================
+    
     fun goBack() {
         updateState { state ->
-            val currentStep = state.step
-            val previousStep = when (currentStep) {
+            val previousStep = when (state.step) {
                 ImportStep.PHOTOS -> ImportStep.LOCATION
                 ImportStep.DETAILS -> ImportStep.PHOTOS
-                else -> currentStep
+                else -> state.step
             }
             state.copy(step = previousStep)
         }
     }
     
-    /**
-     * 重置状态
-     */
     fun reset() {
         screenModelScope.launch {
-            discardDraftUseCase()
+            draftManager.discardDraft()
         }
         updateState { AddMemoryUiState() }
     }
@@ -395,6 +295,6 @@ data class AddMemoryUiState(
     val photoUris: List<String> = emptyList(),
     
     // 详情
-    val emoji: String = "📍",
+    val emoji: String = MemoryConfig.DEFAULT_EMOJI,
     val note: String? = null
 )
